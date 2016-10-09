@@ -9,7 +9,7 @@ theme_dlin <- function() {
   color.axis.text = palette[6]
   color.axis.title = palette[8]
   color.title = palette[9]
-  font = 'Cabin'
+  font = 'Calibri'
 
   theme_bw(base_size=12) +
 
