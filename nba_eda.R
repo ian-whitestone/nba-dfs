@@ -130,9 +130,22 @@ team_data=team_data[player_data[,.N,by=.(gameID,date2)][,.(gameID,date2)],nomatc
 
 
 ###team total FD points
-
+player_data=player_data[,team_fd:=sum(fd),by=.(gameID,team)]
 
 ###opponent total FD points
+opponent_data=player_data[,.(gameID,player,position,team,opponent,fd,team_fd)]
+opponent_data=opponent_data[,opponent:=NULL][,opponent:=team][
+                          ,opp_fd:=team_fd][,team_fd:=NULL][
+                          ,.N,by=.(gameID,opponent,opp_fd)  ][
+                          ,.(gameID,opponent,opp_fd)]
+
+setkey(player_data,gameID,opponent)
+setkey(opponent_data,gameID,opponent)
+
+
+player_data=player_data[opponent_data,nomatch=0]
+
+
 
 
 ##############################
