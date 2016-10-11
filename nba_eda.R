@@ -34,6 +34,11 @@ setnames(player_data,old=c('X3FGA','X3FGM'),new=c('3FGA','3FGM'))
 setkey(event_data,gameID)
 event_data=unique(event_data)
 
+#convert F's to small forwards, "G' to SGs
+
+player_data[position=='F',position:='SF']
+player_data[position=='G',position:='SG']
+
 ####################################
 ####### FEATURE ENGINEERING ########
 ####################################
@@ -141,12 +146,23 @@ opponent_data=opponent_data[,opponent:=NULL][,opponent:=team][
 
 setkey(player_data,gameID,opponent)
 setkey(opponent_data,gameID,opponent)
-
-
 player_data=player_data[opponent_data,nomatch=0]
 
+##position points summary
+####in some cases, teams played w/0 a center. for those, use the post statistic (p_fd)
+posn_sum=player_data %>% group_by(gameID,team,position) %>% summarise(posn_points=sum(fd))
+posn_sum=posn_sum %>% group_by(gameID,team) %>% summarise(pg_fd=sum(ifelse(position=='PG',posn_points,0)),
+          sg_fd=sum(ifelse(position=='SG',posn_points,0)),sf_fd=sum(ifelse(position=='SF',posn_points,0)),
+          pf_fd=sum(ifelse(position=='PF',posn_points,0)),c_fd=sum(ifelse(position=='C',posn_points,0)),
+          g_fd=sum(ifelse(position %in% c('PG','SG','SF'),posn_points,0)),
+          p_fd=sum(ifelse(position %in% c('PF','C'),posn_points,0)))
 
 
+
+##--> now do the same thing for starters, bench players
+
+
+###TO DO: merge tot_fd,opp_fd to team data
 
 ##############################
 ##### UNIVARIATE PLOTS #######
