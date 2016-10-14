@@ -135,34 +135,47 @@ team_data=team_data[player_data[,.N,by=.(gameID,date2)][,.(gameID,date2)],nomatc
 
 
 ###team total FD points
-player_data=player_data[,team_fd:=sum(fd),by=.(gameID,team)]
-
+team_tot_fd=player_data[,.(team_fd=sum(fd)),by=.(gameID,team)]
+setkey(team_tot_fd,gameID,team)
+setkey(player_data,gameID,team)
+setkey(team_data,gameID,team)
+player_data=player_data[team_tot_fd,nomatch=0]
+team_data=team_data[team_tot_fd,nomatch=0]
+  
 ###opponent total FD points
-opponent_data=player_data[,.(gameID,player,position,team,opponent,fd,team_fd)]
-opponent_data=opponent_data[,opponent:=NULL][,opponent:=team][
-                          ,opp_fd:=team_fd][,team_fd:=NULL][
-                          ,.N,by=.(gameID,opponent,opp_fd)  ][
-                          ,.(gameID,opponent,opp_fd)]
-
+team_tot_fd[,`:=` (opponent = team, team = NULL,opp_fd=team_fd,team_fd=NULL)]
+setkey(team_tot_fd,gameID,opponent)
 setkey(player_data,gameID,opponent)
-setkey(opponent_data,gameID,opponent)
-player_data=player_data[opponent_data,nomatch=0]
+player_data=player_data[team_tot_fd,nomatch=0]
+
 
 ##position points summary
 ####in some cases, teams played w/0 a center. for those, use the post statistic (p_fd)
-posn_sum=player_data %>% group_by(gameID,team,position) %>% summarise(posn_points=sum(fd))
-posn_sum=posn_sum %>% group_by(gameID,team) %>% summarise(pg_fd=sum(ifelse(position=='PG',posn_points,0)),
-          sg_fd=sum(ifelse(position=='SG',posn_points,0)),sf_fd=sum(ifelse(position=='SF',posn_points,0)),
-          pf_fd=sum(ifelse(position=='PF',posn_points,0)),c_fd=sum(ifelse(position=='C',posn_points,0)),
-          g_fd=sum(ifelse(position %in% c('PG','SG','SF'),posn_points,0)),
-          p_fd=sum(ifelse(position %in% c('PF','C'),posn_points,0)))
-
-
-
+posn_sum=player_data[,.(posn_points=sum(fd)),by=.(gameID,team,position)]
+posn_sum=posn_sum[,.(pg_fd=sum(ifelse(position=='PG',posn_points,0)),
+                     sg_fd=sum(ifelse(position=='SG',posn_points,0)),
+                     sf_fd=sum(ifelse(position=='SF',posn_points,0)),
+                     pf_fd=sum(ifelse(position=='PF',posn_points,0)),
+                     c_fd=sum(ifelse(position=='C',posn_points,0)),
+                     g_fd=sum(ifelse(position %in% c('PG','SG','SF'),posn_points,0)),
+                     p_fd=sum(ifelse(position %in% c('PF','C'),posn_points,0))),
+                  by=.(gameID,team)]
 ##--> now do the same thing for starters, bench players
 
 
-###TO DO: merge tot_fd,opp_fd to team data
+
+##merge positional points with team_data
+setkey(posn_sum,gameID,team)
+setkey(team_data,gameID,team)
+team_data=team_data[posn_sum,nomatch=0]
+
+
+
+
+
+
+
+
 
 ##############################
 ##### UNIVARIATE PLOTS #######
