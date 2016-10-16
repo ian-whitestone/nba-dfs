@@ -1,3 +1,4 @@
+rm(list=ls())
 setwd("/Users/whitesi/Documents/Programming/Python/DataAnalystND/UD651")
 
 ##IMPORT PACKAGES
@@ -160,6 +161,7 @@ posn_sum=posn_sum[,.(pg_fd=sum(ifelse(position=='PG',posn_points,0)),
                      g_fd=sum(ifelse(position %in% c('PG','SG','SF'),posn_points,0)),
                      p_fd=sum(ifelse(position %in% c('PF','C'),posn_points,0))),
                   by=.(gameID,team)]
+
 ##--> now do the same thing for starters, bench players
 
 

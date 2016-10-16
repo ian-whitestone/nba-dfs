@@ -1,0 +1,44 @@
+---
+title: "NBA Daily Fantasy Exploration"
+author: "Ian Whitestone"
+date: "October 16, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Daily fantasy sports (DFS) are a subset of fantasy sports, where participants construct lineups based on the games occuring on a given day [<https://en.wikipedia.org/wiki/Daily_fantasy_sports>]. Lineups are subject to various constraints, such as a salary cap and having a minimum number of players at each position. As with other fantasy sports, player's fantasy points are based on their actual performance in real life. As a result, a key component of being a successful DFS player is the ability to project a player's total points for a given night. 
+
+The study focuses on the NBA DFS, with a particular emphasis on examining factors that influence a player's score. The NBA data used in the study is sourced from Erik Berg's API  [<https://erikberg.com/api>]. The study covers NBA data from the 2012-2013 season, up until the 2015-2016 season. Fantasy points are calculated using Fanduel's scoring system, described below. Unlike other sports, all positions in the NBA are scored using the same system.
+
+* 3-pt FG = 3pts
+* 2-pt FG = 2pts
+* FT = 1pt
+* Rebound = 1.2pts
+* Assist = 1.5pts
+* Block = 2pts
+* Steal = 2pts
+* Turnover = -1pt
+
+Source: <https://www.fanduel.com/rules>
+
+##
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+http://vidzi.tv/j4me09rfrxg8.html
