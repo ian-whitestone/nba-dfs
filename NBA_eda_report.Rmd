@@ -26,19 +26,66 @@ The study focuses on the NBA DFS, with a particular emphasis on examining factor
 
 Source: <https://www.fanduel.com/rules>
 
-##
+## Data Cleaning
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-summary(cars)
+##enter code here
 ```
 
-## Including Plots
+## Feature Engineering
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-http://vidzi.tv/j4me09rfrxg8.html
+## Univariate Plots
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
+## Univariate Analysis
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
+## Bivariate Plots
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
+## Bivariate Analysis
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
+## Multivariate Plots
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
+
+## Multivariate Analysis
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
+
+## Final Plots and Summary
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
+
+## Reflection
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
