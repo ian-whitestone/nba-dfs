@@ -21,22 +21,24 @@ palette <- brewer.pal("YlGnBu", n=9)
 ####### DATA IMPORT & CLEANING ########
 #######################################
 
-##READ IN DATA
+##read in data
 player_data=read.csv("player_data.csv")
 event_data=read.csv("event_data.csv")
 
+##convert to data.tables
 event_data=as.data.table(event_data)
-player_data=as.data.table(player_data) 
+player_data=as.data.table(player_data)
+
+#rename and drop unnecessary columns
 player_data[ ,c("X","sport") := NULL]
 event_data[,X:=NULL]
 setnames(player_data,old=c('X3FGA','X3FGM'),new=c('3FGA','3FGM'))
 
-#get rid of dupe rows in event_data
+#get rid of duplicate rows in event_data
 setkey(event_data,gameID)
 event_data=unique(event_data)
 
-#convert F's to small forwards, "G' to SGs
-
+#convert positions coded as 'F' to 'SF', 'G' to 'SG'
 player_data[position=='F',position:='SF']
 player_data[position=='G',position:='SG']
 
@@ -44,10 +46,10 @@ player_data[position=='G',position:='SG']
 ####### FEATURE ENGINEERING ########
 ####################################
 
-##CALCULATE FANDUEL POINTS
+##calculate fanduel points
 player_data[,fd:=3*`3FGM`+2*(FGM-`3FGM`)+1*FTM+1.2*rebounds+1.5*assists+2*blocks+2*steals-1*turnovers]
 
-##CREATE A SEASON VARIABLE
+##create a seaosn variable that can be used to distinguish between different seasons
 player_data[,date:=as.Date(date)] ##convert string date to actual date
 player_data[,date2:=as.numeric(date)]
 player_data[,season_code:=20122013]
@@ -78,7 +80,7 @@ player_data[,homeaway:=1]
 player_data[team==away_team,homeaway:=0]
 
 ##add rolling variables
-window_size = seq(5,65,15)
+window_size = seq(5,55,10)
 player_data=player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fd', window_size)
 player_data=player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'minutes', window_size)
 player_data=player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FGA', window_size)
@@ -134,7 +136,6 @@ setkey(team_data,gameID)
 setkey(player_data,gameID)
 team_data=team_data[player_data[,.N,by=.(gameID,date2)][,.(gameID,date2)],nomatch=0][order(date2)]
 
-
 ###team total FD points
 team_tot_fd=player_data[,.(team_fd=sum(fd)),by=.(gameID,team)]
 setkey(team_tot_fd,gameID,team)
@@ -147,8 +148,9 @@ team_data=team_data[team_tot_fd,nomatch=0]
 team_tot_fd[,`:=` (opponent = team, team = NULL,opp_fd=team_fd,team_fd=NULL)]
 setkey(team_tot_fd,gameID,opponent)
 setkey(player_data,gameID,opponent)
+setkey(team_data,gameID,opponent)
 player_data=player_data[team_tot_fd,nomatch=0]
-
+# team_data=team_data[team_tot_fd,nomatch=0]
 
 ##position points summary
 ####in some cases, teams played w/0 a center. for those, use the post statistic (p_fd)
@@ -162,21 +164,28 @@ posn_sum=posn_sum[,.(pg_fd=sum(ifelse(position=='PG',posn_points,0)),
                      p_fd=sum(ifelse(position %in% c('PF','C'),posn_points,0))),
                   by=.(gameID,team)]
 
-##--> now do the same thing for starters, bench players
-
-
+##--> eventually do the same thing for starters, bench players
 
 ##merge positional points with team_data
 setkey(posn_sum,gameID,team)
 setkey(team_data,gameID,team)
 team_data=team_data[posn_sum,nomatch=0]
 
+##add opponent field
+team_data[,opponent:=home_team]
+team_data[team==home_team,opponent:=away_team]
 
+##get team opponent data
+team_data_opp=team_data[,.(gameID,team,pg_fd,sg_fd,sf_fd,pf_fd,c_fd,g_fd,p_fd,team_fd)]
+setnames(team_data_opp,old=c("team","pg_fd","sg_fd","sf_fd","pf_fd","c_fd","g_fd","p_fd","team_fd"),
+         new=c("opponent","opp_pg_fd","opp_sg_fd","opp_sf_fd","opp_pf_fd","opp_c_fd","opp_g_fd","opp_p_fd","opp_fd"))
+setkey(team_data_opp,gameID,opponent)
+team_data=team_data[team_data_opp,nomatch=0]
 
-
-
-
-
+##rolling team statistics
+##the following stat describes how many fantasy points a team has been giving up to opposing teams,
+##...[cont'd] expressed as rolling averages over the last X games
+team_data=team_data %>% group_by(team) %>% arrange(date2) %>% roll_variable_mean(., 'opp_fd', window_size)
 
 
 ##############################

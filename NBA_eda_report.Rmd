@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Daily fantasy sports (DFS) are a subset of fantasy sports, where participants construct lineups based on the games occuring on a given day [<https://en.wikipedia.org/wiki/Daily_fantasy_sports>]. Lineups are subject to various constraints, such as a salary cap and having a minimum number of players at each position. As with other fantasy sports, player's fantasy points are based on their actual performance in real life. As a result, a key component of being a successful DFS player is the ability to project a player's total points for a given night. 
 
-The study focuses on the NBA DFS, with a particular emphasis on examining factors that influence a player's score. The NBA data used in the study is sourced from Erik Berg's API  [<https://erikberg.com/api>]. The study covers NBA data from the 2012-2013 season, up until the 2015-2016 season. Fantasy points are calculated using Fanduel's scoring system, described below. Unlike other sports, all positions in the NBA are scored using the same system.
+This study focuses on the NBA DFS, with a particular emphasis on examining factors that influence a player's score. The NBA data used in the study is sourced from Erik Berg's API  [<https://erikberg.com/api>]. The study covers NBA data from the 2012-2013 season, up until the 2015-2016 season. Fantasy points are calculated using Fanduel's scoring system, described below. Unlike other sports, all positions in the NBA are scored using the same system.
 
 * 3-pt FG = 3pts
 * 2-pt FG = 2pts
@@ -26,17 +26,71 @@ The study focuses on the NBA DFS, with a particular emphasis on examining factor
 
 Source: <https://www.fanduel.com/rules>
 
-## Data Cleaning
+## Data Import & Cleaning
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
+Two csv files were created using the NBA data API. The player_data file contains a record for each player that recorded any statistics during a game. The event data table contains a record for each game, identified by a unique gameID. This gameID can be used to join the two data sources.
+
+Before performing producing any plots or analysis, the data is imported and cleaned.
+
+```{r eval=FALSE, message=FALSE, warning=FALSE}
+##import packages
+library(data.table)
+library(dplyr)
+library(dtplyr)
+library(tidyr)
+library(ggplot2)
+source("dlin.R")
+library(RColorBrewer)
+library(reshape2)
+library(corrplot)
+source("roll_variable.R")
+library(RcppRoll)
+
+palette=brewer.pal("YlGnBu", n=9)
+
+##read in data
+player_data=read.csv("player_data.csv")
+event_data=read.csv("event_data.csv")
+
+##convert to data.tables
+event_data=as.data.table(event_data)
+player_data=as.data.table(player_data)
+
+#rename and drop unnecessary columns
+player_data[ ,c("X","sport") := NULL]
+event_data[,X:=NULL]
+setnames(player_data,old=c('X3FGA','X3FGM'),new=c('3FGA','3FGM'))
+
+#get rid of duplicate rows in event_data
+setkey(event_data,gameID)
+event_data=unique(event_data)
+
+#convert positions coded as 'F' to 'SF', 'G' to 'SG'
+player_data[position=='F',position:='SF']
+player_data[position=='G',position:='SG']
+
 ```
 
 ## Feature Engineering
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
+Creating powerful predictions relies not only on a good model, but significant features that represent underlying effects.
+
+As the underlying data contains base-level statistics, the first step involves creating a variable for the Fanduel fantasy points.
+
+```{r eval=FALSE, message=FALSE, warning=FALSE}
+##calculate fanduel points
+player_data[,fd:=3*`3FGM`+2*(FGM-`3FGM`)+1*FTM+1.2*rebounds+1.5*assists+2*blocks+2*steals-1*turnovers]
+
+##create a seaosn variable that can be used to distinguish between different seasons
+player_data[,date:=as.Date(date)] ##convert string date to actual date
+player_data[,date2:=as.numeric(date)]
+player_data[,season_code:=20122013]
+player_data[date >= '2013-10-28' & date <= '2014-06-16', season_code:=20132014]
+player_data[date >= '2014-10-28' & date <= '2015-06-16', season_code:=20142015]
+player_data[date >= '2015-10-27' & date <= '2016-06-19', season_code:=20152016]
 ```
+
+
 
 ## Univariate Plots
 
@@ -89,3 +143,7 @@ Source: <https://www.fanduel.com/rules>
 ##enter code here
 ```
 
+
+
+echo=False emits the code
+eval=False prevents the code from running!
