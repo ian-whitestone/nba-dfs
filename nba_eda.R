@@ -192,17 +192,35 @@ team_data=team_data %>% group_by(team) %>% arrange(date2) %>% roll_variable_mean
 ##### UNIVARIATE PLOTS #######
 ##############################
 
+glimpse(player_data)
+##comment on data
+
 ggplot(player_data,aes(fd)) + geom_histogram(binwidth = 1) + theme_dlin() +
   labs(title = 'NBA Fanduel Points Histogram')
 summary(player_data$fd)
+
 ###comments - you can get -ive points. the distribution is positively skewed
 
 ggplot(player_data,aes(position)) + geom_bar() + theme_dlin() +
   labs(title = 'NBA Positions Histogram')
 
-#upon further inspection, there are a small
-dim(player_data[position %in% c('F','G')])[1]
-player_data[position=='F'][,.N,by=(player)] ##get player_names
+##comments - less centers compared to other positions
+
+summary(player_data$position)
+##divide each element by 4916*2 to get avg per team 
+
+ggplot(player_data[position %in% c("PG","SG","SF"),],aes(fd)) + geom_histogram(binwidth = 1) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points - Guards')
+
+summary(player_data[position %in% c("PG","SG","SF"),]$fd)
+
+ggplot(player_data[position %in% c("PF","C"),],aes(fd)) + geom_histogram(binwidth = 1) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points - Posts') #+ expand_limits(y=2500)
+
+summary(player_data[position %in% c("PF","C"),]$fd)
+
+ggplot(player_data,aes(minutes)) + geom_bar() + theme_dlin() +
+  labs(title = 'NBA Minutes Played')
 
 ##get count of games per season
 player_data[,.N,by=season_code]
@@ -211,11 +229,19 @@ player_data[,.N,by=season_code]
 ##multiple variable distribution plots
 ##code from http://stackoverflow.com/questions/13035834/plot-every-column-in-a-data-frame-as-a-histogram-on-one-page-using-ggplotcoz
 cols=colnames(player_data)
-cols=cols[!(cols %in% c('date','team','season_code','gameID','player','sport','position'))]
+roll_variables = colnames(player_data)[grepl('_\\w*\\d', colnames(player_data))]
+cols=cols[!(cols %in% c('date','team','season_code','gameID','player','sport','position',roll_variables))]
 
 d <- melt(player_data[, cols, with=FALSE])
 ggplot(d,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram()
 
+##new feature variables
+##b2b,opp_b2b,team_fd, rolling variables
+
+summary(player_data$minutes_5)
+##comment on na's
+
+summary(player_data$b2b)
 
 ##############################
 ##### UNIVARIATE ANALYSIS ####
@@ -253,6 +279,29 @@ ggplot(player_data,aes(x = homeaway, y = fd)) + geom_point(colour=palette[5]) + 
   geom_smooth(method = "lm", se = FALSE,colour='black')
 
 
+##b2b 
+ggplot(player_data,aes(x = b2b, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points - Effect of Playing at Home', x = 'back-to-back game (binary)', y = 'fanduel points') +
+  geom_smooth(method = "lm", se = FALSE,colour='black')
+
+
+##minutes played by position
+
+ggplot(player_data,aes(factor(position),minutes)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'NBA Minutes Played By Position')
+
+##points scored by position (revisited)
+ggplot(player_data,aes(factor(position),fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points By Position')
+
+##points scored by team
+ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(factor(team),team_fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',y='team total fanduel points') +theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
+##########IAN TO TO#########
+###manually fix mising posns
 
 
 ##USEFUL Funcs
