@@ -196,8 +196,8 @@ team_data=team_data[team_data_opp,nomatch=0]
 ##the following stat describes how many fantasy points a team has been giving up to opposing teams,
 ##...[cont'd] expressed as rolling averages over the last X games
 team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_fd', window_size)
-team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'g_fd', window_size)
-team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'p_fd', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_g_fd', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_p_fd', window_size)
 
 ##join these features to player_data
 ##join team_data "team" on player_data "opponent"

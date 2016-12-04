@@ -231,6 +231,94 @@ team_data=rbind(event_data_1,event_data_2)
 
 ```
 
+Using the new team_data table, team based features can be calculated. The total FD points for each team and their opponent are calculated below. These features are then merged back to the player_data table.
+
+```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
+
+##add date to team_data
+setkey(team_data,gameID)
+setkey(player_data,gameID)
+team_data=team_data[player_data[,.N,by=.(gameID,date_num)][,.(gameID,date_num)],nomatch=0][order(date_num)]
+
+##define opponent in team_data table
+team_data[,opponent:=home_team]
+team_data[team==home_team,opponent:=away_team]
+
+###team total FD points
+team_tot_fd=player_data[,.(team_fd=sum(fd)),by=.(gameID,team)]
+setkey(team_tot_fd,gameID,team)
+setkey(player_data,gameID,team)
+setkey(team_data,gameID,team)
+player_data=player_data[team_tot_fd,nomatch=0]
+team_data=team_data[team_tot_fd,nomatch=0]
+  
+###opponent total FD points
+team_tot_fd[,`:=` (opponent = team, team = NULL,opp_fd=team_fd,team_fd=NULL)]
+setkey(team_tot_fd,gameID,opponent)
+setkey(player_data,gameID,opponent)
+setkey(team_data,gameID,opponent)
+player_data=player_data[team_tot_fd,nomatch=0]
+team_data=team_data[team_tot_fd,nomatch=0]
+
+```
+
+
+Another potentially powerful feature is the amount of FD points a team gives up to certain positions. For example, if a team has weak defense against centers/power forwards, it should be reflected in how many FD points they give up to the opposing teams centers/PFs (on average). 
+
+The code below aggregates the FD points by game,team and position. These results are then joined back to team_data, and computed for the opponents. Rolling averages are then calculated, and finally merged back to player_data. 
+
+The final result in player_data will look like:
+
+**player      position  team opponent ... ...   opp_fd_5 opp_p_fd_5 opp_g_fd_5**
+<br>
+Chris Bosh     PF       MIA   BOS     ... ...   3.221    5.662      6.123
+
+where the last three fields are the average FD points given up by Boston to opposing teams, C/PFs, and PG/SG/SFs respectively.
+
+```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
+##position points summary
+##calculate the total FD points for each team by position
+##in some cases, teams played w/o a center. for those, use the post statistic (p_fd)
+posn_sum=player_data[,.(posn_points=sum(fd)),by=.(gameID,team,position)]
+posn_sum=posn_sum[,.(pg_fd=sum(ifelse(position=='PG',posn_points,0)),
+                     sg_fd=sum(ifelse(position=='SG',posn_points,0)),
+                     sf_fd=sum(ifelse(position=='SF',posn_points,0)),
+                     pf_fd=sum(ifelse(position=='PF',posn_points,0)),
+                     c_fd=sum(ifelse(position=='C',posn_points,0)),
+                     g_fd=sum(ifelse(position %in% c('PG','SG','SF'),posn_points,0)),
+                     p_fd=sum(ifelse(position %in% c('PF','C'),posn_points,0))),
+                     by=.(gameID,team)]
+
+
+##merge positional points with team_data
+setkey(posn_sum,gameID,team)
+setkey(team_data,gameID,team)
+team_data=team_data[posn_sum,nomatch=0]
+
+##get team opponent data
+team_data_opp=team_data[,.(gameID,team,pg_fd,sg_fd,sf_fd,pf_fd,c_fd,g_fd,p_fd,team_fd)]
+setnames(team_data_opp,old=c("team","pg_fd","sg_fd","sf_fd","pf_fd","c_fd","g_fd","p_fd","team_fd"),
+         new=c("opponent","opp_pg_fd","opp_sg_fd","opp_sf_fd","opp_pf_fd","opp_c_fd","opp_g_fd","opp_p_fd","opp_fd"))
+setkey(team_data_opp,gameID,opponent)
+team_data=team_data[team_data_opp,nomatch=0]
+
+##rolling team statistics
+##the following stat describes how many fantasy points a team has been giving up to opposing teams,
+##...[cont'd] expressed as rolling averages over the last X games
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_fd', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_g_fd', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_p_fd', window_size)
+
+##join these features to player_data
+##join team_data "team" on player_data "opponent"
+rolling_team_variables= colnames(team_data)[grepl('fd_\\w*\\d', colnames(team_data))]
+player_data=merge(player_data, team_data[,append(rolling_team_variables,c("gameID","team")),with=FALSE], 
+                  by.x=c('gameID','opponent'), by.y=c('gameID','team'), all=FALSE)
+
+```
+
+
+
 
 ## <a name="uni_plots"></a>Univariate Plots
 
