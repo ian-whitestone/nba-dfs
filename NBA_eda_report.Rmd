@@ -1,7 +1,7 @@
 ---
 title: "NBA Daily Fantasy Exploration"
 author: "Ian Whitestone"
-date: "October 16, 2016"
+date: "December XX, 2016"
 output: html_document
 ---
 
@@ -9,7 +9,22 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Introduction
+##Table of Contents
+
+
+- [Introduction](#introduction)
+- [Data Import & Cleaning](#data_import)
+- [Feature Engineering](#features)
+- [Univariate Plots](#uni_plots)
+- [Univariate Analysis](#uni_analysis)
+- [Bivariate Plots](#bi_plots)
+- [Bivariate Analysis](#bi_analysis)
+- [Multivariate Plots](#multi_plots)
+- [Multivariate Analysis](#multi_analysis)
+- [Final Plots and Summary](#final)
+- [Reflection](#reflection)
+
+## <a name="introduction"></a>Introduction
 
 Daily fantasy sports (DFS) are a subset of fantasy sports, where participants construct lineups based on the games occuring on a given day [<https://en.wikipedia.org/wiki/Daily_fantasy_sports>]. Lineups are subject to various constraints, such as a salary cap and having a minimum number of players at each position. As with other fantasy sports, player's fantasy points are based on their actual performance in real life. As a result, a key component of being a successful DFS player is the ability to project a player's total points for a given night. 
 
@@ -26,13 +41,13 @@ This study focuses on the NBA DFS, with a particular emphasis on examining facto
 
 Source: <https://www.fanduel.com/rules>
 
-## Data Import & Cleaning
+## <a name="data_import"></a>Data Import & Cleaning
 
 Two csv files were created using the NBA data API. The player_data file contains a record for each player that recorded any statistics during a game. The event data table contains a record for each game, identified by a unique gameID. This gameID can be used to join the two data sources.
 
 Before performing producing any plots or analysis, the data is imported and cleaned.
 
-```{r eval=FALSE, message=FALSE, warning=FALSE}
+```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ##import packages
 library(data.table)
 library(dplyr)
@@ -49,8 +64,8 @@ library(RcppRoll)
 palette=brewer.pal("YlGnBu", n=9)
 
 ##read in data
-player_data=read.csv("player_data.csv")
-event_data=read.csv("event_data.csv")
+player_data=read.csv("data/player_data.csv")
+event_data=read.csv("data/event_data.csv")
 
 ##convert to data.tables
 event_data=as.data.table(event_data)
@@ -71,73 +86,198 @@ player_data[position=='G',position:='SG']
 
 ```
 
-## Feature Engineering
+## <a name="features"></a>Feature Engineering
+NOTE: this section is not required as part of the final project but was included for reference as these engineered variables are included in the EDA.
 
 Creating powerful predictions relies not only on a good model, but significant features that represent underlying effects.
 
-As the underlying data contains base-level statistics, the first step involves creating a variable for the Fanduel fantasy points.
+As the underlying data contains base-level statistics, the first step involves creating a variable for the Fanduel fantasy points. Other data cleaning and merging steps are documented below.
 
-```{r eval=FALSE, message=FALSE, warning=FALSE}
+```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ##calculate fanduel points
 player_data[,fd:=3*`3FGM`+2*(FGM-`3FGM`)+1*FTM+1.2*rebounds+1.5*assists+2*blocks+2*steals-1*turnovers]
 
 ##create a seaosn variable that can be used to distinguish between different seasons
 player_data[,date:=as.Date(date)] ##convert string date to actual date
-player_data[,date2:=as.numeric(date)]
+player_data[,date_num:=as.numeric(date)]
 player_data[,season_code:=20122013]
 player_data[date >= '2013-10-28' & date <= '2014-06-16', season_code:=20132014]
 player_data[date >= '2014-10-28' & date <= '2015-06-16', season_code:=20142015]
 player_data[date >= '2015-10-27' & date <= '2016-06-19', season_code:=20152016]
+
+##filter out players who didnt play
+player_data=filter(player_data,minutes>0)
+
+##get team info
+team_data=event_data[,.(gameID,home_team,away_team)]
+setkey(player_data,gameID)
+setkey(team_data,gameID)
+player_data=player_data[team_data,nomatch=0] ##merge the team data to the player_data table
+
+##create home/away variable
+player_data[,homeaway:=1]
+player_data[team==away_team,homeaway:=0]
+
+```
+
+Next, a function is created to calculate rolling averages for any statistic. The function takes in a data frame, a target field to calculate the rollign averages for, and a window variable in the form seq(starting_window,max_window,increment).
+
+```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
+
+roll_variable_mean = function(d, target, windows) {
+  require(dplyr)
+  require(lazyeval)
+  
+  exprl = list()
+  i = 1
+  
+  for (x in windows) {
+    exprl[[i]] = interp(~ lag(roll_mean(tar, w, align = 'right', fill = NA), 1), tar=as.name(target), w=x)
+    i = i + 1
+  }
+  names = paste(target, windows, sep="_")
+  exprl = setNames(exprl, names)
+  
+  d = mutate_(d, .dots = exprl)
+  
+  for (n in 2:length(names)) {
+    expr = interp(~ ifelse(is.na(long), short, long), long=as.name(names[n]), short=as.name(names[n-1]))
+    exprl = setNames(list(expr), names[n])
+    d = mutate_(d, .dots = exprl)
+  }
+  
+  return(d)
+}
+
+
+
+##add rolling variables
+window_size = seq(5,55,10)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fd', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'minutes', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FGA', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FTA', window_size)
+
 ```
 
 
+A practical hypothesis is that players/teams that are playing multiple games in a row will perform worse as a result of fatigue. To test this hypothesis, a binary back-to-back feature is created which signals if the team is playing a back-to-back game. A variable is also created to signal if the team's opponent is playing a back-to-back game.
 
-## Univariate Plots
+```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
+
+##BACK TO BACK GAME VARIABLE
+days_rest=player_data[,.N,by=.(team,date_num)][,.(team,date_num)][order(team,date_num)]
+days_rest$date_diff=ave(days_rest$date_num, days_rest$team, FUN=function(x) c(10, diff(x)))
+days_rest$b2b=ifelse(days_rest$date_diff==1,1,0)
+
+##add opponent field
+player_data[,opponent:=home_team]
+player_data[team==home_team,opponent:=away_team]
+
+##join b2b,opp_b2b
+setkey(player_data,team,date_num)
+setkey(days_rest,team,date_num)
+player_data=player_data[days_rest[,.(team,date_num,b2b)],nomatch=0]
+
+days_rest[,opp_b2b:=b2b][,b2b:=NULL]
+setkey(player_data,opponent,date_num)
+player_data=player_data[days_rest[,.(team,date_num,opp_b2b)],nomatch=0]
+
+```
+
+
+In order to calculate team based statistics, the event_data table must be manipulated to have one record per team per game.
+
+```{r eval=TRUE, message=FALSE, warning=FALSE}
+
+###TEAM BASED DATA
+##currently the event data table has one record per game, with statistics for each team
+colnames(event_data)
+
+```
+
+As shown in the column names of event_data, team variables are preceded by 'home_' or 'away_'. After splitting the table into one record per team per game, these variable names must be standardized by removing the "home/away" pre-name.
+
+```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
+##calculate final scores for each game
+event_data[,home_score:=sum(home_Q1,home_Q2,home_Q3,home_Q4,home_Q5,home_Q6,home_Q7,home_Q8,na.rm=TRUE),
+           by=1:NROW(event_data)]
+event_data[,away_score:=sum(away_Q1,away_Q2,away_Q3,away_Q4,away_Q5,away_Q6,away_Q7,away_Q8,na.rm=TRUE),
+           by=1:NROW(event_data)]
+
+##to calculate team based statistics, a data frame/table with 2 records per game -
+##[cont'd] one for each team, is ideal
+##the code below splits the event_data table into two tables, one for each team,
+##[cont'd] standardizes the variable names, and then joins the two tables back together
+team_variables= c('3FGA','3FGM','FGM','FGA','FTA','FTM',
+                  'Q1','Q2','Q3','Q4','Q5','Q6','Q7',
+                  'Q8','assists','blocks','fouls',
+                  'points','rebounds','steals','turnovers')
+
+away_variables= paste0('away_',team_variables)
+home_variables= paste0('home_',team_variables)
+
+##data table for the home team of each game
+event_data_1=event_data[,team:=home_team][,setdiff(colnames(event_data),away_variables),with=FALSE]
+##data table for hte away team of each game
+event_data_2=event_data[,team:=away_team][,setdiff(colnames(event_data),home_variables),with=FALSE]
+
+##change the column names to generic names (i.e. away_FGM --> FGM,home_FTA --> FTA)
+setnames(event_data_1,old=home_variables,new=team_variables)
+setnames(event_data_2,old=away_variables,new=team_variables)
+
+##join the two tables back together
+team_data=rbind(event_data_1,event_data_2)
+
+```
+
+
+## <a name="uni_plots"></a>Univariate Plots
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##enter code here
 ```
 
-## Univariate Analysis
+## <a name="uni_analysis"></a>Univariate Analysis
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##enter code here
 ```
 
-## Bivariate Plots
+## <a name="bi_plots"></a>Bivariate Plots
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##enter code here
 ```
 
-## Bivariate Analysis
+## <a name="bi_analysis"></a>Bivariate Analysis
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##enter code here
 ```
 
-## Multivariate Plots
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
-```
-
-
-## Multivariate Analysis
+## <a name="multi_plots"></a>Multivariate Plots
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##enter code here
 ```
 
 
-## Final Plots and Summary
+## <a name="multi_analysis"></a>Multivariate Analysis
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##enter code here
 ```
 
 
-## Reflection
+## <a name="final"></a>Final Plots and Summary
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
+
+## <a name="reflection"></a>Reflection
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##enter code here
@@ -147,27 +287,4 @@ player_data[date >= '2015-10-27' & date <= '2016-06-19', season_code:=20152016]
 
 echo=False emits the code
 eval=False prevents the code from running!
-
-ADD HYPERLINKS!!!
-
-
-
-
-- [Intent](#intent)
-- [Architecture](#architecture)
-  - [Structure](#structure)
-- [Technologies](#technologies)
-- [Coming Soon](#comingsoon)
-- [Contributing](#contributing)
- 
-## <a name="intent"></a>Intent
-There are many times where data quality issues crop up.  Largely speaking, these issues are either a) where data hasn't loaded completely (or at all), b) where data has loaded incorrectly, or c) where distributions/values of data change over time.  We're trying to catch issues like:
-- Missing whole load for a date, base or child
-- Missing just one value of split for a date (country_code = 2), base or child
-- Missing one value of split in a child
-- New values in a field
-- Distribution of values change
-- Duplicate data
-- Include cyclicality somehow (weekly mostly, but monthly too)
-    + Think about cycle dates
- 
+results = 'hide' suppresses the output of the code

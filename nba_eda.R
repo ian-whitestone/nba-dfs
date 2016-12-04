@@ -1,5 +1,5 @@
 rm(list=ls())
-setwd("/Users/whitesi/Documents/Programming/Python/DataAnalystND/ud651")
+setwd("/Users/whitesi/Documents/Programming/Python/data_analyst_nd/nba-dfs")
 
 ##IMPORT PACKAGES
 library(data.table)
@@ -51,7 +51,7 @@ player_data[,fd:=3*`3FGM`+2*(FGM-`3FGM`)+1*FTM+1.2*rebounds+1.5*assists+2*blocks
 
 ##create a seaosn variable that can be used to distinguish between different seasons
 player_data[,date:=as.Date(date)] ##convert string date to actual date
-player_data[,date2:=as.numeric(date)]
+player_data[,date_num:=as.numeric(date)]
 player_data[,season_code:=20122013]
 player_data[date >= '2013-10-28' & date <= '2014-06-16', season_code:=20132014]
 player_data[date >= '2014-10-28' & date <= '2015-06-16', season_code:=20142015]
@@ -81,18 +81,18 @@ player_data[team==away_team,homeaway:=0]
 
 ##add rolling variables
 window_size = seq(5,55,10)
-player_data=player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fd', window_size)
-player_data=player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'minutes', window_size)
-player_data=player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FGA', window_size)
-player_data=player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FTA', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fd', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'minutes', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FGA', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FTA', window_size)
 
 
 min_variables= colnames(player_data)[grepl('minutes_\\w*\\d', colnames(player_data))]
 fd_variables= colnames(player_data)[grepl('fd_\\w*\\d', colnames(player_data))]
 
 ##BACK TO BACK GAME VARIABLE
-days_rest=player_data[,.N,by=.(team,date2)][,.(team,date2)][order(team,date2)]
-days_rest$date_diff=ave(days_rest$date2, days_rest$team, FUN=function(x) c(10, diff(x)))
+days_rest=player_data[,.N,by=.(team,date_num)][,.(team,date_num)][order(team,date_num)]
+days_rest$date_diff=ave(days_rest$date_num, days_rest$team, FUN=function(x) c(10, diff(x)))
 days_rest$b2b=ifelse(days_rest$date_diff==1,1,0)
 
 ##add opponent field
@@ -100,21 +100,30 @@ player_data[,opponent:=home_team]
 player_data[team==home_team,opponent:=away_team]
 
 ##join b2b,opp_b2b
-setkey(player_data,team,date2)
-setkey(days_rest,team,date2)
-player_data=player_data[days_rest[,.(team,date2,b2b)],nomatch=0]
+setkey(player_data,team,date_num)
+setkey(days_rest,team,date_num)
+player_data=player_data[days_rest[,.(team,date_num,b2b)],nomatch=0]
 
 days_rest[,opp_b2b:=b2b][,b2b:=NULL]
-setkey(player_data,opponent,date2)
-player_data=player_data[days_rest[,.(team,date2,opp_b2b)],nomatch=0]
+setkey(player_data,opponent,date_num)
+player_data=player_data[days_rest[,.(team,date_num,opp_b2b)],nomatch=0]
 
 
 ###TEAM BASED DATA
-##calculate final scores for each game
-event_data[,home_score:=sum(home_Q1,home_Q2,home_Q3,home_Q4,home_Q5,home_Q6,home_Q7,home_Q8,na.rm=TRUE),by=1:NROW(event_data)]
-event_data[,away_score:=sum(away_Q1,away_Q2,away_Q3,away_Q4,away_Q5,away_Q6,away_Q7,away_Q8,na.rm=TRUE),by=1:NROW(event_data)]
+##currently the event data table has one record per game, with statistics for each team
+colnames(event_data)
 
-##split event data so there is two records per game - one for each team
+
+##calculate final scores for each game
+event_data[,home_score:=sum(home_Q1,home_Q2,home_Q3,home_Q4,home_Q5,home_Q6,home_Q7,home_Q8,na.rm=TRUE),
+           by=1:NROW(event_data)]
+event_data[,away_score:=sum(away_Q1,away_Q2,away_Q3,away_Q4,away_Q5,away_Q6,away_Q7,away_Q8,na.rm=TRUE),
+           by=1:NROW(event_data)]
+
+##to calculate team based statistics, a data frame/table with 2 records per game -
+##[cont'd] one for each team, is ideal
+##the code below splits the event_data table into two tables, one for each team,
+##[cont'd] standardizes the variable names, and then joins the two tables back together
 team_variables= c('3FGA','3FGM','FGM','FGA','FTA','FTM',
                   'Q1','Q2','Q3','Q4','Q5','Q6','Q7',
                   'Q8','assists','blocks','fouls',
@@ -123,18 +132,22 @@ team_variables= c('3FGA','3FGM','FGM','FGA','FTA','FTM',
 away_variables= paste0('away_',team_variables)
 home_variables= paste0('home_',team_variables)
 
+##data table for the home team of each game
 event_data_1=event_data[,team:=home_team][,setdiff(colnames(event_data),away_variables),with=FALSE]
+##data table for hte away team of each game
 event_data_2=event_data[,team:=away_team][,setdiff(colnames(event_data),home_variables),with=FALSE]
 
+##change the column names to generic names (i.e. away_FGM --> FGM,home_FTA --> FTA)
 setnames(event_data_1,old=home_variables,new=team_variables)
 setnames(event_data_2,old=away_variables,new=team_variables)
 
+##join the two tables back together
 team_data=rbind(event_data_1,event_data_2)
 
 ##add date to team_data
 setkey(team_data,gameID)
 setkey(player_data,gameID)
-team_data=team_data[player_data[,.N,by=.(gameID,date2)][,.(gameID,date2)],nomatch=0][order(date2)]
+team_data=team_data[player_data[,.N,by=.(gameID,date_num)][,.(gameID,date_num)],nomatch=0][order(date_num)]
 
 ###team total FD points
 team_tot_fd=player_data[,.(team_fd=sum(fd)),by=.(gameID,team)]
@@ -185,7 +198,7 @@ team_data=team_data[team_data_opp,nomatch=0]
 ##rolling team statistics
 ##the following stat describes how many fantasy points a team has been giving up to opposing teams,
 ##...[cont'd] expressed as rolling averages over the last X games
-team_data=team_data %>% group_by(team) %>% arrange(date2) %>% roll_variable_mean(., 'opp_fd', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_fd', window_size)
 
 
 ##############################
