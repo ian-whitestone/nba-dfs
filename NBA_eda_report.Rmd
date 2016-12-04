@@ -147,3 +147,27 @@ player_data[date >= '2015-10-27' & date <= '2016-06-19', season_code:=20152016]
 
 echo=False emits the code
 eval=False prevents the code from running!
+
+ADD HYPERLINKS!!!
+
+
+
+
+- [Intent](#intent)
+- [Architecture](#architecture)
+  - [Structure](#structure)
+- [Technologies](#technologies)
+- [Coming Soon](#comingsoon)
+- [Contributing](#contributing)
+ 
+## <a name="intent"></a>Intent
+There are many times where data quality issues crop up.  Largely speaking, these issues are either a) where data hasn't loaded completely (or at all), b) where data has loaded incorrectly, or c) where distributions/values of data change over time.  We're trying to catch issues like:
+- Missing whole load for a date, base or child
+- Missing just one value of split for a date (country_code = 2), base or child
+- Missing one value of split in a child
+- New values in a field
+- Distribution of values change
+- Duplicate data
+- Include cyclicality somehow (weekly mostly, but monthly too)
+    + Think about cycle dates
+ 

@@ -1,5 +1,5 @@
 rm(list=ls())
-setwd("/Users/whitesi/Documents/Programming/Python/DataAnalystND/UD651")
+setwd("/Users/whitesi/Documents/Programming/Python/DataAnalystND/ud651")
 
 ##IMPORT PACKAGES
 library(data.table)
@@ -22,8 +22,8 @@ palette <- brewer.pal("YlGnBu", n=9)
 #######################################
 
 ##read in data
-player_data=read.csv("player_data.csv")
-event_data=read.csv("event_data.csv")
+player_data=read.csv("data/player_data.csv")
+event_data=read.csv("data/event_data.csv")
 
 ##convert to data.tables
 event_data=as.data.table(event_data)
@@ -296,8 +296,10 @@ ggplot(player_data,aes(factor(position),fd)) + geom_boxplot() + theme_dlin() +
 
 ##points scored by team
 ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(factor(team),team_fd)) + geom_boxplot() + theme_dlin() +
-  labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',y='team total fanduel points') +theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',y='team total fanduel points') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
+
+####order the graph so highest points on the left (order by median!)
 
 
 ##########IAN TO TO#########
