@@ -87,9 +87,6 @@ player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variab
 player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FTA', window_size)
 
 
-min_variables= colnames(player_data)[grepl('minutes_\\w*\\d', colnames(player_data))]
-fd_variables= colnames(player_data)[grepl('fd_\\w*\\d', colnames(player_data))]
-
 ##BACK TO BACK GAME VARIABLE
 days_rest=player_data[,.N,by=.(team,date_num)][,.(team,date_num)][order(team,date_num)]
 days_rest$date_diff=ave(days_rest$date_num, days_rest$team, FUN=function(x) c(10, diff(x)))
@@ -149,6 +146,10 @@ setkey(team_data,gameID)
 setkey(player_data,gameID)
 team_data=team_data[player_data[,.N,by=.(gameID,date_num)][,.(gameID,date_num)],nomatch=0][order(date_num)]
 
+##define opponent in team_data table
+team_data[,opponent:=home_team]
+team_data[team==home_team,opponent:=away_team]
+
 ###team total FD points
 team_tot_fd=player_data[,.(team_fd=sum(fd)),by=.(gameID,team)]
 setkey(team_tot_fd,gameID,team)
@@ -163,10 +164,11 @@ setkey(team_tot_fd,gameID,opponent)
 setkey(player_data,gameID,opponent)
 setkey(team_data,gameID,opponent)
 player_data=player_data[team_tot_fd,nomatch=0]
-# team_data=team_data[team_tot_fd,nomatch=0]
+team_data=team_data[team_tot_fd,nomatch=0]
 
 ##position points summary
-####in some cases, teams played w/0 a center. for those, use the post statistic (p_fd)
+##calculate the total FD points for each team by position
+##in some cases, teams played w/o a center. for those, use the post statistic (p_fd)
 posn_sum=player_data[,.(posn_points=sum(fd)),by=.(gameID,team,position)]
 posn_sum=posn_sum[,.(pg_fd=sum(ifelse(position=='PG',posn_points,0)),
                      sg_fd=sum(ifelse(position=='SG',posn_points,0)),
@@ -175,18 +177,13 @@ posn_sum=posn_sum[,.(pg_fd=sum(ifelse(position=='PG',posn_points,0)),
                      c_fd=sum(ifelse(position=='C',posn_points,0)),
                      g_fd=sum(ifelse(position %in% c('PG','SG','SF'),posn_points,0)),
                      p_fd=sum(ifelse(position %in% c('PF','C'),posn_points,0))),
-                  by=.(gameID,team)]
+                     by=.(gameID,team)]
 
-##--> eventually do the same thing for starters, bench players
 
 ##merge positional points with team_data
 setkey(posn_sum,gameID,team)
 setkey(team_data,gameID,team)
 team_data=team_data[posn_sum,nomatch=0]
-
-##add opponent field
-team_data[,opponent:=home_team]
-team_data[team==home_team,opponent:=away_team]
 
 ##get team opponent data
 team_data_opp=team_data[,.(gameID,team,pg_fd,sg_fd,sf_fd,pf_fd,c_fd,g_fd,p_fd,team_fd)]
@@ -199,7 +196,20 @@ team_data=team_data[team_data_opp,nomatch=0]
 ##the following stat describes how many fantasy points a team has been giving up to opposing teams,
 ##...[cont'd] expressed as rolling averages over the last X games
 team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_fd', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'g_fd', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'p_fd', window_size)
 
+##join these features to player_data
+##join team_data "team" on player_data "opponent"
+rolling_team_variables= colnames(team_data)[grepl('fd_\\w*\\d', colnames(team_data))]
+player_data=merge(player_data, team_data[,append(rolling_team_variables,c("gameID","team")),with=FALSE], 
+                  by.x=c('gameID','opponent'), by.y=c('gameID','team'), all=FALSE)
+
+
+
+
+min_variables= colnames(player_data)[grepl('minutes_\\w*\\d', colnames(player_data))]
+fd_variables= colnames(player_data)[grepl('fd_\\w*\\d', colnames(player_data))]
 
 ##############################
 ##### UNIVARIATE PLOTS #######
@@ -330,27 +340,15 @@ dim(player_data) ##dim[1]=nrows, dim[2]=ncolumns
 ##defensive efficiency statistic (points allowed, FGA allowed, points allowed to each posn)
 ##usage rate
 ##points per minute
-##weak rebounding teams?
+##weak rebounding teams? (especially important for centers..opp_rebounds allowed feature)
 ##teams with lots of turnovers??
+
+##MODELLING
+##look at your notes file, and look at DFN site for other ideas
+##two models: guards and centers 
 
 
 ##OTHER IDEAS
 ##explore covariance...versus teammates, versus opponents
 ##PLOT FD VS OT!!
 ##plot FD vs high scoring games
-
-##############################
-##############################
-###### REQUIRED SECTIONS #####
-##############################
-##############################
-
-# 1) INTRO
-# 2) UNIVARIATE PLOTS
-# 3) UNIVARIATE ANALYSIS
-# 4) BIVARIATE PLOTS SECTION
-# 5) BIVARIATE ANALYSIS
-# 6) MULTIVARIATE PLOTS SECTION
-# 7) MULTIVARIATE ANALYSIS
-# 8) FINAL PLOTS AND SUMMARY
-# 9) REFLECTION
