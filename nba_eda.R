@@ -13,6 +13,7 @@ library(reshape2)
 library(corrplot)
 source("roll_variable.R")
 library(RcppRoll)
+library(rms)
 
 ##display.brewer.all() ##view all palettes with this
 palette <- brewer.pal("YlGnBu", n=9)
@@ -208,8 +209,63 @@ player_data=merge(player_data, team_data[,append(rolling_team_variables,c("gameI
 
 
 
-min_variables= colnames(player_data)[grepl('minutes_\\w*\\d', colnames(player_data))]
-fd_variables= colnames(player_data)[grepl('fd_\\w*\\d', colnames(player_data))]
+##############################
+######## Modelling ###########
+##############################
+
+
+min_variables = colnames(player_data)[grepl('minutes_\\w*\\d', colnames(player_data))]
+fd_variables = colnames(player_data)[grepl('fd_\\w*\\d', colnames(player_data))]
+fta_variables = colnames(player_data)[grepl('FTA_\\w*\\d', colnames(player_data))]
+fga_variables = colnames(player_data)[grepl('FGA_\\w*\\d', colnames(player_data))]
+  
+base_variables = c("fd_5","fd_15","fd_25","fd_35","fd_45","fd_55")
+all_variables = c(fd_variables,min_variables,fta_variables,fga_variables,'b2b','opp_b2b','homeaway')
+
+
+training = player_data[season_code != 20152016]
+test = player_data[season_code == 20152016]
+ytest = select(test, gameID, player, fd)
+
+####### BASE MODEL  #########
+fmla = reformulate(base_variables, response='fd')
+
+#get model stats
+mdl=lm(fmla, data = training)
+# mdl %>% summary
+
+#test model on test data
+ytest$mdl = predict(mdl, test)
+
+lm(fd ~ mdl, data = ytest) %>% summary
+
+
+####### MODEL 1 #########
+fmla1 = reformulate(all_variables, response='fd')
+
+#get model stats
+mdl1=lm(fmla1, data = training)
+mdl1 %>% summary
+
+#test model on test data
+ytest$mdl1 = predict(mdl1, test)
+lm(fd ~ mdl1, data = ytest) %>% summary
+
+
+######  MODEL 2 #########
+
+mdl2 = Glm(fmla1,data = training)
+
+vars_kept = fastbw(mdl2, k.aic = 1.5)$names.kept
+
+mdl2 = lm(reformulate(vars_kept, response = 'fd'), data = training)
+
+mdl2 %>% summary
+
+#test model on test data
+ytest$mdl2 = predict(mdl2, test)
+lm(fd ~ mdl2, data = ytest) %>% summary
+
 
 ##############################
 ##### UNIVARIATE PLOTS #######
