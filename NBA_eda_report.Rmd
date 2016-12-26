@@ -60,29 +60,30 @@ library(reshape2)
 library(corrplot)
 source("roll_variable.R")
 library(RcppRoll)
+source("multiplot.R")
 
-palette=brewer.pal("YlGnBu", n=9)
+palette = brewer.pal("YlGnBu", n=9)
 
 ##read in data
-player_data=read.csv("data/player_data.csv")
-event_data=read.csv("data/event_data.csv")
+player_data = read.csv("data/player_data.csv")
+event_data = read.csv("data/event_data.csv")
 
 ##convert to data.tables
-event_data=as.data.table(event_data)
-player_data=as.data.table(player_data)
+event_data = as.data.table(event_data)
+player_data = as.data.table(player_data)
 
 #rename and drop unnecessary columns
 player_data[ ,c("X","sport") := NULL]
 event_data[,X:=NULL]
-setnames(player_data,old=c('X3FGA','X3FGM'),new=c('3FGA','3FGM'))
+setnames(player_data,old = c('X3FGA','X3FGM'),new = c('3FGA','3FGM'))
 
 #get rid of duplicate rows in event_data
 setkey(event_data,gameID)
-event_data=unique(event_data)
+event_data = unique(event_data)
 
 #convert positions coded as 'F' to 'SF', 'G' to 'SG'
-player_data[position=='F',position:='SF']
-player_data[position=='G',position:='SG']
+player_data[position == 'F',position:= 'SF']
+player_data[position == 'G',position:= 'SG']
 
 ```
 
@@ -95,28 +96,28 @@ As the underlying data contains base-level statistics, the first step involves c
 
 ```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ##calculate fanduel points
-player_data[,fd:=3*`3FGM`+2*(FGM-`3FGM`)+1*FTM+1.2*rebounds+1.5*assists+2*blocks+2*steals-1*turnovers]
+player_data[,fd:= 3*`3FGM`+2*(FGM-`3FGM`)+1*FTM+1.2*rebounds+1.5*assists+2*blocks+2*steals-1*turnovers]
 
 ##create a seaosn variable that can be used to distinguish between different seasons
 player_data[,date:=as.Date(date)] ##convert string date to actual date
 player_data[,date_num:=as.numeric(date)]
 player_data[,season_code:=20122013]
-player_data[date >= '2013-10-28' & date <= '2014-06-16', season_code:=20132014]
-player_data[date >= '2014-10-28' & date <= '2015-06-16', season_code:=20142015]
-player_data[date >= '2015-10-27' & date <= '2016-06-19', season_code:=20152016]
+player_data[date >= '2013-10-28' & date <= '2014-06-16', season_code:= 20132014]
+player_data[date >= '2014-10-28' & date <= '2015-06-16', season_code:= 20142015]
+player_data[date >= '2015-10-27' & date <= '2016-06-19', season_code:= 20152016]
 
 ##filter out players who didnt play
-player_data=filter(player_data,minutes>0)
+player_data = filter(player_data,minutes > 0)
 
 ##get team info
 team_data=event_data[,.(gameID,home_team,away_team)]
 setkey(player_data,gameID)
 setkey(team_data,gameID)
-player_data=player_data[team_data,nomatch=0] ##merge the team data to the player_data table
+player_data = player_data[team_data,nomatch = 0] ##merge the team data to the player_data table
 
 ##create home/away variable
-player_data[,homeaway:=1]
-player_data[team==away_team,homeaway:=0]
+player_data[,homeaway:= 1]
+player_data[team==away_team,homeaway:= 0]
 
 ```
 
@@ -166,22 +167,22 @@ A practical hypothesis is that players/teams that are playing multiple games in 
 ```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 
 ##BACK TO BACK GAME VARIABLE
-days_rest=player_data[,.N,by=.(team,date_num)][,.(team,date_num)][order(team,date_num)]
-days_rest$date_diff=ave(days_rest$date_num, days_rest$team, FUN=function(x) c(10, diff(x)))
-days_rest$b2b=ifelse(days_rest$date_diff==1,1,0)
+days_rest = player_data[,.N,by = .(team,date_num)][,.(team,date_num)][order(team,date_num)]
+days_rest$date_diff = ave(days_rest$date_num, days_rest$team, FUN = function(x) c(10, diff(x)))
+days_rest$b2b = ifelse(days_rest$date_diff == 1,1,0)
 
 ##add opponent field
-player_data[,opponent:=home_team]
-player_data[team==home_team,opponent:=away_team]
+player_data[,opponent:= home_team]
+player_data[team == home_team,opponent:= away_team]
 
 ##join b2b,opp_b2b
 setkey(player_data,team,date_num)
 setkey(days_rest,team,date_num)
-player_data=player_data[days_rest[,.(team,date_num,b2b)],nomatch=0]
+player_data = player_data[days_rest[,.(team,date_num,b2b)],nomatch = 0]
 
-days_rest[,opp_b2b:=b2b][,b2b:=NULL]
+days_rest[,opp_b2b:= b2b][,b2b:= NULL]
 setkey(player_data,opponent,date_num)
-player_data=player_data[days_rest[,.(team,date_num,opp_b2b)],nomatch=0]
+player_data = player_data[days_rest[,.(team,date_num,opp_b2b)],nomatch = 0]
 
 ```
 
@@ -200,34 +201,34 @@ As shown in the column names of event_data, team variables are preceded by 'home
 
 ```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ##calculate final scores for each game
-event_data[,home_score:=sum(home_Q1,home_Q2,home_Q3,home_Q4,home_Q5,home_Q6,home_Q7,home_Q8,na.rm=TRUE),
-           by=1:NROW(event_data)]
-event_data[,away_score:=sum(away_Q1,away_Q2,away_Q3,away_Q4,away_Q5,away_Q6,away_Q7,away_Q8,na.rm=TRUE),
-           by=1:NROW(event_data)]
+event_data[,home_score:= sum(home_Q1,home_Q2,home_Q3,home_Q4,home_Q5,home_Q6,home_Q7,home_Q8,na.rm= TRUE),
+           by = 1:NROW(event_data)]
+event_data[,away_score:=sum(away_Q1,away_Q2,away_Q3,away_Q4,away_Q5,away_Q6,away_Q7,away_Q8,na.rm= TRUE),
+           by = 1:NROW(event_data)]
 
 ##to calculate team based statistics, a data frame/table with 2 records per game -
 ##[cont'd] one for each team, is ideal
 ##the code below splits the event_data table into two tables, one for each team,
 ##[cont'd] standardizes the variable names, and then joins the two tables back together
-team_variables= c('3FGA','3FGM','FGM','FGA','FTA','FTM',
+team_variables = c('3FGA','3FGM','FGM','FGA','FTA','FTM',
                   'Q1','Q2','Q3','Q4','Q5','Q6','Q7',
                   'Q8','assists','blocks','fouls',
                   'points','rebounds','steals','turnovers')
 
-away_variables= paste0('away_',team_variables)
-home_variables= paste0('home_',team_variables)
+away_variables = paste0('away_',team_variables)
+home_variables = paste0('home_',team_variables)
 
 ##data table for the home team of each game
-event_data_1=event_data[,team:=home_team][,setdiff(colnames(event_data),away_variables),with=FALSE]
+event_data_1 = event_data[,team:= home_team][,setdiff(colnames(event_data),away_variables),with = FALSE]
 ##data table for hte away team of each game
-event_data_2=event_data[,team:=away_team][,setdiff(colnames(event_data),home_variables),with=FALSE]
+event_data_2 = event_data[,team:= away_team][,setdiff(colnames(event_data),home_variables),with = FALSE]
 
 ##change the column names to generic names (i.e. away_FGM --> FGM,home_FTA --> FTA)
-setnames(event_data_1,old=home_variables,new=team_variables)
-setnames(event_data_2,old=away_variables,new=team_variables)
+setnames(event_data_1,old = home_variables,new = team_variables)
+setnames(event_data_2,old = away_variables,new = team_variables)
 
 ##join the two tables back together
-team_data=rbind(event_data_1,event_data_2)
+team_data = rbind(event_data_1,event_data_2)
 
 ```
 
@@ -238,27 +239,27 @@ Using the new team_data table, team based features can be calculated. The total 
 ##add date to team_data
 setkey(team_data,gameID)
 setkey(player_data,gameID)
-team_data=team_data[player_data[,.N,by=.(gameID,date_num)][,.(gameID,date_num)],nomatch=0][order(date_num)]
+team_data= team_data[player_data[,.N,by = .(gameID,date_num)][,.(gameID,date_num)],nomatch = 0][order(date_num)]
 
 ##define opponent in team_data table
-team_data[,opponent:=home_team]
-team_data[team==home_team,opponent:=away_team]
+team_data[,opponent:= home_team]
+team_data[team == home_team,opponent:= away_team]
 
 ###team total FD points
-team_tot_fd=player_data[,.(team_fd=sum(fd)),by=.(gameID,team)]
+team_tot_fd = player_data[,.(team_fd = sum(fd)),by = .(gameID,team)]
 setkey(team_tot_fd,gameID,team)
 setkey(player_data,gameID,team)
 setkey(team_data,gameID,team)
-player_data=player_data[team_tot_fd,nomatch=0]
-team_data=team_data[team_tot_fd,nomatch=0]
+player_data = player_data[team_tot_fd,nomatch = 0]
+team_data = team_data[team_tot_fd,nomatch = 0]
   
 ###opponent total FD points
-team_tot_fd[,`:=` (opponent = team, team = NULL,opp_fd=team_fd,team_fd=NULL)]
+team_tot_fd[,`:=` (opponent = team, team = NULL,opp_fd = team_fd,team_fd = NULL)]
 setkey(team_tot_fd,gameID,opponent)
 setkey(player_data,gameID,opponent)
 setkey(team_data,gameID,opponent)
-player_data=player_data[team_tot_fd,nomatch=0]
-team_data=team_data[team_tot_fd,nomatch=0]
+player_data = player_data[team_tot_fd,nomatch = 0]
+team_data = team_data[team_tot_fd,nomatch = 0]
 
 ```
 
@@ -279,15 +280,15 @@ where the last three fields are the average FD points given up by Boston to oppo
 ##position points summary
 ##calculate the total FD points for each team by position
 ##in some cases, teams played w/o a center. for those, use the post statistic (p_fd)
-posn_sum=player_data[,.(posn_points=sum(fd)),by=.(gameID,team,position)]
-posn_sum=posn_sum[,.(pg_fd=sum(ifelse(position=='PG',posn_points,0)),
-                     sg_fd=sum(ifelse(position=='SG',posn_points,0)),
-                     sf_fd=sum(ifelse(position=='SF',posn_points,0)),
-                     pf_fd=sum(ifelse(position=='PF',posn_points,0)),
-                     c_fd=sum(ifelse(position=='C',posn_points,0)),
-                     g_fd=sum(ifelse(position %in% c('PG','SG','SF'),posn_points,0)),
-                     p_fd=sum(ifelse(position %in% c('PF','C'),posn_points,0))),
-                     by=.(gameID,team)]
+posn_sum = player_data[,.(posn_points = sum(fd)),by = .(gameID,team,position)]
+posn_sum = posn_sum[,.(pg_fd = sum(ifelse(position == 'PG',posn_points,0)),
+                     sg_fd = sum(ifelse(position == 'SG',posn_points,0)),
+                     sf_fd = sum(ifelse(position == 'SF',posn_points,0)),
+                     pf_fd = sum(ifelse(position == 'PF',posn_points,0)),
+                     c_fd = sum(ifelse(position == 'C',posn_points,0)),
+                     g_fd = sum(ifelse(position %in% c('PG','SG','SF'),posn_points,0)),
+                     p_fd = sum(ifelse(position %in% c('PF','C'),posn_points,0))),
+                     by = .(gameID,team)]
 
 
 ##merge positional points with team_data
@@ -296,11 +297,13 @@ setkey(team_data,gameID,team)
 team_data=team_data[posn_sum,nomatch=0]
 
 ##get team opponent data
-team_data_opp=team_data[,.(gameID,team,pg_fd,sg_fd,sf_fd,pf_fd,c_fd,g_fd,p_fd,team_fd)]
-setnames(team_data_opp,old=c("team","pg_fd","sg_fd","sf_fd","pf_fd","c_fd","g_fd","p_fd","team_fd"),
-         new=c("opponent","opp_pg_fd","opp_sg_fd","opp_sf_fd","opp_pf_fd","opp_c_fd","opp_g_fd","opp_p_fd","opp_fd"))
+team_data_opp = team_data[,.(gameID,team,pg_fd,sg_fd,sf_fd,pf_fd,c_fd,g_fd,p_fd,team_fd)]
+setnames(team_data_opp,old = c("team","pg_fd","sg_fd","sf_fd","pf_fd","c_fd","g_fd","p_fd","team_fd"),
+         new = c("opponent","opp_pg_fd","opp_sg_fd","opp_sf_fd","opp_pf_fd","opp_c_fd","opp_g_fd",
+                 "opp_p_fd","opp_fd"))
+
 setkey(team_data_opp,gameID,opponent)
-team_data=team_data[team_data_opp,nomatch=0]
+team_data = team_data[team_data_opp,nomatch = 0]
 
 ##rolling team statistics
 ##the following stat describes how many fantasy points a team has been giving up to opposing teams,
@@ -311,9 +314,9 @@ team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_m
 
 ##join these features to player_data
 ##join team_data "team" on player_data "opponent"
-rolling_team_variables= colnames(team_data)[grepl('fd_\\w*\\d', colnames(team_data))]
-player_data=merge(player_data, team_data[,append(rolling_team_variables,c("gameID","team")),with=FALSE], 
-                  by.x=c('gameID','opponent'), by.y=c('gameID','team'), all=FALSE)
+rolling_team_variables = colnames(team_data)[grepl('fd_\\w*\\d', colnames(team_data))]
+player_data = merge(player_data, team_data[,append(rolling_team_variables,c("gameID","team")),with = FALSE], 
+                  by.x = c('gameID','opponent'), by.y = c('gameID','team'), all = FALSE)
 
 ```
 
@@ -322,11 +325,121 @@ player_data=merge(player_data, team_data[,append(rolling_team_variables,c("gameI
 
 ## <a name="uni_plots"></a>Univariate Plots
 
+When exploring the impacts on a player's FD points, the first question that comes to mind is about the distribution of FD points.
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
+ggplot(player_data,aes(fd)) + geom_histogram(binwidth = 1) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points Histogram')
+
+summary(player_data$fd)
+
 ```
 
+For the NBA, the FD points distribution is positvely skewed. There is a large number of occurences where players score 0 FD points, despite having played more than 0 minutes in the game. This is due to players recording no statisitcs during their time on the court. The mean and median FD points for all players is 18.8 & 17.1, respectively.
+
+Another interesting observation is that a few players actually get negative FD points, due to a high number of turnovers and lack of other offensive production. 
+
+Next, we examine a breakdown of the different player positions.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(player_data[position %in% c('PG','SG','SF','PF','C'),],aes(position)) + geom_bar() + theme_dlin() +
+  labs(title = 'NBA Positions Histogram')
+
+##comments - less centers compared to other positions
+player_data[position %in% c('PG','SG','SF','PF','C'),][,.(avg_per_game=.N/(NROW(event_data) *2)),by = position]
+
+```
+
+In general, there an approximately even number of players across all positions, with centers having slightly fewer numbers. On average, 1.7 centers play per game per team, compared to 2.0-2.3 players at the other positions.
+
+Next, we examine the length of each game. Games that run for extended periods allow players to accumulate more points through increased playing time, leading to higher fantasy production.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# How many games go to OT?
+dat = melt(event_data[ , `:=` (Regular = sum(ifelse(is.na(home_Q4),0,1)), Single_OT = sum(ifelse(is.na(home_Q5),0,1)),
+                          Double_OT = sum(ifelse(is.na(home_Q6),0,1)), Triple_OT = sum(ifelse(is.na(home_Q7),0,1)),
+                          Quad_OT = sum(ifelse(is.na(home_Q8),0,1)))][
+                          ,.(Regular,Single_OT,Double_OT,Triple_OT,Quad_OT)][0:1])
+
+colnames(dat) = c("Game_Length", "count")
+
+dat$fraction = dat$count / sum(dat$count)
+dat = dat[order(dat$fraction), ]
+dat$ymax = cumsum(dat$fraction)
+dat$ymin = c(0, head(dat$ymax, n=-1))
+dat$percentage = round(dat$count / sum(dat$count)* 100,2)
+
+ggplot(dat, aes(fill=Game_Length, ymax=ymax, ymin=ymin, xmax=4, xmin=3)) +
+  geom_rect(colour="grey30") +
+  coord_polar(theta="y") +
+  xlim(c(0, 4)) +
+  theme_dlin() +
+  theme(panel.grid=element_blank()) +
+  theme(axis.text=element_blank()) +
+  theme(axis.ticks=element_blank()) +
+  labs(title="Fraction of NBA Games in OT: 2012-2015")
+
+dat[,.(Game_Length,percentage)]
+```
+
+As shown, a very small number of games go to overtime; approximately 7%. 
+
+Rolling variables over different time windows were computed for multiple variables. These rolling variables should follow very similar distributions to the underlying, un-rolled variable. As a sanity check, the distributions of minutes and minutes over the past X games is shown below.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+##facet grid one of the rolling variable features to show its similar to the un-rolled feature 
+p1 = ggplot(player_data,aes(minutes_5)) + geom_histogram(binwidth = 1) + theme_dlin()
+
+
+p2 = ggplot(player_data,aes(minutes_15)) + geom_histogram(binwidth = 1) + theme_dlin()
+
+p3 = ggplot(player_data,aes(minutes_25)) + geom_histogram(binwidth = 1) + theme_dlin()
+
+p4 = ggplot(player_data,aes(minutes)) + geom_histogram(binwidth = 1) + theme_dlin() +
+    labs(title = 'NBA Rolling Minutes Played Histogram')
+
+multiplot(p4, p1, p2, p3, cols=1)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+cols = c("3FGM","FGM","FTM","rebounds","assists","blocks","steals","turnovers","fouls")
+
+pg = melt(player_data[position == 'PG', cols, with=FALSE])
+ggplot(pg,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
+        labs(title = 'Point Guards')
+
+sg = melt(player_data[position == 'SG', cols, with=FALSE])
+ggplot(sg,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
+  labs(title = 'Shooting Guards')
+
+sf = melt(player_data[position == 'SF', cols, with=FALSE])
+ggplot(sf,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
+  labs(title = 'Small Forwards')
+
+pf = melt(player_data[position == 'PF', cols, with=FALSE])
+ggplot(pf,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
+  labs(title = 'Power Forwards')
+
+c = melt(player_data[position == 'C', cols, with=FALSE])
+ggplot(c,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
+  labs(title = 'Center')
+
+```
+
+
+
 ## <a name="uni_analysis"></a>Univariate Analysis
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+glimpse(player_data)
+```
+
+A quick glimpse at the player data table reveals that msot variables either continuous integers or doubles. Most of the text based variables, such as team or name, are factors. All of the rolling time-window variables appear to be "NA", however, this is due to the ordering of the data. For example, there are not enough games at the beginning to compute a 15 day average.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##enter code here
@@ -335,10 +448,12 @@ player_data=merge(player_data, team_data[,append(rolling_team_variables,c("gameI
 ## <a name="bi_plots"></a>Bivariate Plots
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
+
 ```
 
 ## <a name="bi_analysis"></a>Bivariate Analysis
+
+
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##enter code here

@@ -14,6 +14,7 @@ library(corrplot)
 source("roll_variable.R")
 library(RcppRoll)
 library(rms)
+source("multiplot.R")
 
 ##display.brewer.all() ##view all palettes with this
 palette <- brewer.pal("YlGnBu", n=9)
@@ -276,43 +277,85 @@ glimpse(player_data)
 
 ggplot(player_data,aes(fd)) + geom_histogram(binwidth = 1) + theme_dlin() +
   labs(title = 'NBA Fanduel Points Histogram')
+
 summary(player_data$fd)
 
 ###comments - you can get -ive points. the distribution is positively skewed
 
-ggplot(player_data,aes(position)) + geom_bar() + theme_dlin() +
+ggplot(player_data[position %in% c('PG','SG','SF','PF','C'),],aes(position)) + geom_bar() + theme_dlin() +
   labs(title = 'NBA Positions Histogram')
 
 ##comments - less centers compared to other positions
+##number of players at each position per team per game
+player_data[position %in% c('PG','SG','SF','PF','C'),][,.(avg_per_game=.N/(NROW(event_data) *2)),by = position]
 
-summary(player_data$position)
-##divide each element by 4916*2 to get avg per team 
 
-ggplot(player_data[position %in% c("PG","SG","SF"),],aes(fd)) + geom_histogram(binwidth = 1) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points - Guards')
+# How many games go to OT?
+dat = melt(event_data[ , `:=` (Regular = sum(ifelse(is.na(home_Q4),0,1)), Single_OT = sum(ifelse(is.na(home_Q5),0,1)),
+                          Double_OT = sum(ifelse(is.na(home_Q6),0,1)), Triple_OT = sum(ifelse(is.na(home_Q7),0,1)),
+                          Quad_OT = sum(ifelse(is.na(home_Q8),0,1)))][,.(Regular,Single_OT,Double_OT,Triple_OT,Quad_OT)][0:1])
 
-summary(player_data[position %in% c("PG","SG","SF"),]$fd)
+colnames(dat) = c("Game_Length", "count")
 
-ggplot(player_data[position %in% c("PF","C"),],aes(fd)) + geom_histogram(binwidth = 1) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points - Posts') #+ expand_limits(y=2500)
+dat$fraction = dat$count / sum(dat$count)
+dat = dat[order(dat$fraction), ]
+dat$ymax = cumsum(dat$fraction)
+dat$ymin = c(0, head(dat$ymax, n=-1))
+dat$percentage = round(dat$count / sum(dat$count)* 100,2)
 
-summary(player_data[position %in% c("PF","C"),]$fd)
+ggplot(dat, aes(fill=Game_Length, ymax=ymax, ymin=ymin, xmax=4, xmin=3)) +
+  geom_rect(colour="grey30") +
+  coord_polar(theta="y") +
+  xlim(c(0, 4)) +
+  theme_dlin() +
+  theme(panel.grid=element_blank()) +
+  theme(axis.text=element_blank()) +
+  theme(axis.ticks=element_blank()) +
+  labs(title="Fraction of NBA Games in OT: 2012-2015")
 
-ggplot(player_data,aes(minutes)) + geom_bar() + theme_dlin() +
-  labs(title = 'NBA Minutes Played')
+dat[,.(Game_Length,percentage)]
 
-##get count of games per season
-player_data[,.N,by=season_code]
+###minutes played 
+
+##facet grid one of the rolling variable features to show its similar to the un-rolled feature 
+p1 = ggplot(player_data,aes(minutes_5)) + geom_histogram(binwidth = 1) + theme_dlin() +
+  labs(title = 'NBA Rolling Minutes Played Histogram')
+
+p2 = ggplot(player_data,aes(minutes_15)) + geom_histogram(binwidth = 1) + theme_dlin()
+
+p3 = ggplot(player_data,aes(minutes_25)) + geom_histogram(binwidth = 1) + theme_dlin()
+
+multiplot(p1, p2, p3, cols=1)
+
+
 
 
 ##multiple variable distribution plots
 ##code from http://stackoverflow.com/questions/13035834/plot-every-column-in-a-data-frame-as-a-histogram-on-one-page-using-ggplotcoz
-cols=colnames(player_data)
-roll_variables = colnames(player_data)[grepl('_\\w*\\d', colnames(player_data))]
-cols=cols[!(cols %in% c('date','team','season_code','gameID','player','sport','position',roll_variables))]
 
-d <- melt(player_data[, cols, with=FALSE])
-ggplot(d,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram()
+cols = c("3FGM","FGM","FTM","rebounds","assists","blocks","steals","turnovers","fouls")
+
+pg = melt(player_data[position == 'PG', cols, with=FALSE])
+ggplot(pg,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
+        labs(title = 'Point Guards')
+
+sg = melt(player_data[position == 'SG', cols, with=FALSE])
+ggplot(sg,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
+  labs(title = 'Shooting Guards')
+
+sf = melt(player_data[position == 'SF', cols, with=FALSE])
+ggplot(sf,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
+  labs(title = 'Small Forwards')
+
+pf = melt(player_data[position == 'PF', cols, with=FALSE])
+ggplot(pf,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
+  labs(title = 'Power Forwards')
+
+c = melt(player_data[position == 'C', cols, with=FALSE])
+ggplot(c,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
+  labs(title = 'Center')
+
+##box plot of fd points by position 
 
 ##new feature variables
 ##b2b,opp_b2b,team_fd, rolling variables
@@ -321,6 +364,7 @@ summary(player_data$minutes_5)
 ##comment on na's
 
 summary(player_data$b2b)
+
 
 ##############################
 ##### UNIVARIATE ANALYSIS ####
@@ -365,6 +409,7 @@ ggplot(player_data,aes(x = b2b, y = fd)) + geom_point(colour=palette[5]) + theme
 
 
 ##minutes played by position
+p + geom_boxplot() + coord_flip()
 
 ggplot(player_data,aes(factor(position),minutes)) + geom_boxplot() + theme_dlin() +
   labs(title = 'NBA Minutes Played By Position')
@@ -390,14 +435,17 @@ summary(player_data)
 summary(player_data)
 dim(player_data) ##dim[1]=nrows, dim[2]=ncolumns
 
+
 ###FEATURES TO ADD
-##injuries!! or depth at position feature
+##injuries at PF/C or G/SG/SF!! or depth at position feature
 ##try and quantify injuries as lost shot attempts that will become available!
 ##defensive efficiency statistic (points allowed, FGA allowed, points allowed to each posn)
 ##usage rate
 ##points per minute
 ##weak rebounding teams? (especially important for centers..opp_rebounds allowed feature)
 ##teams with lots of turnovers??
+##starter feature!
+##change binary features to factors!
 
 ##MODELLING
 ##look at your notes file, and look at DFN site for other ideas
@@ -408,3 +456,6 @@ dim(player_data) ##dim[1]=nrows, dim[2]=ncolumns
 ##explore covariance...versus teammates, versus opponents
 ##PLOT FD VS OT!!
 ##plot FD vs high scoring games
+##plot distributino of FD points allowed by team vs. average (facet grid with season!)
+##
+
