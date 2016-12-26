@@ -1,5 +1,6 @@
 rm(list=ls())
 setwd("/Users/whitesi/Documents/Programming/Python/data_analyst_nd/nba-dfs")
+setwd("/Users/cmt606/Documents/Ian/ME/nba-dfs")
 
 ##IMPORT PACKAGES
 library(data.table)

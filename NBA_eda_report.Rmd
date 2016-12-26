@@ -5,6 +5,8 @@ date: "December XX, 2016"
 output: html_document
 ---
 
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -322,13 +324,14 @@ player_data = merge(player_data, team_data[,append(rolling_team_variables,c("gam
 
 ## <a name="uni_analysis"></a>Univariate Analysis
 
+Prior to exploring the different variables, a quick overview of the dataset is provided.
 
-# What is the structure of your dataset?
-# What is/are the main feature(s) of interest in your dataset?
-# What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
-# Did you create any new variables from existing variables in the dataset?
-# --> could look at distrbn of home/away for sanity check
-# Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+NROW(player_data)
+NROW(event_data)
+player_data[,.N,by = .(season_code, gameID)][,.N, by=season_code]
+```
+Data for a total of 4916 NBA games is provided, spanning the seasons across 2012-2015. Each season contains ~1200 games. 
 
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
@@ -339,7 +342,7 @@ A quick glimpse at the player data table reveals that most variables either cont
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-summary(player_data)
+
 ```
 
 
