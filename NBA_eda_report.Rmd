@@ -403,34 +403,27 @@ multiplot(p4, p1, p2, p3, cols=1)
 
 ```
 
+The distributions for the rolling variables look similar to the base minutes distribution. They differ in that the rolling minutes have fewer occurences of low-minute games. Low-minute games (i.e <5 min) are presumably due to cases where a player was injured mid-game, a player was brought in to close a blow-out game, or the player was pulled due to poor play. Intuitevely, these cases should not occur over consecutive games. 
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+The formula for FD points was shown earlier. The plots below show how the distributions of relevent statistics varies between positions.
 
-cols = c("3FGM","FGM","FTM","rebounds","assists","blocks","steals","turnovers","fouls")
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+player_data[, grouped_posn := ifelse(position %in% c('PG','SG','SF'),1,2)]
 
-pg = melt(player_data[position == 'PG', cols, with=FALSE])
-ggplot(pg,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
-        labs(title = 'Point Guards')
+base_stats = player_data[,.(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = sum(FTM)/.N,
+                          rebounds = sum(rebounds)/.N, assists = sum(assists)/.N,
+                          blocks = sum(blocks)/.N, steals = sum(steals)/.N,
+                          turnovers = sum(turnovers)/.N, fouls = sum(fouls)/.N),
+                         by = .(gameID, position)]
 
-sg = melt(player_data[position == 'SG', cols, with=FALSE])
-ggplot(sg,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
-  labs(title = 'Shooting Guards')
+d = melt(base_stats, id.vars = c("gameID", "position"))
 
-sf = melt(player_data[position == 'SF', cols, with=FALSE])
-ggplot(sf,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
-  labs(title = 'Small Forwards')
-
-pf = melt(player_data[position == 'PF', cols, with=FALSE])
-ggplot(pf,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
-  labs(title = 'Power Forwards')
-
-c = melt(player_data[position == 'C', cols, with=FALSE])
-ggplot(c,aes(x = value)) + theme_dlin() + facet_wrap(~variable,scales = "free_x") + geom_histogram(binwidth = 0.5) +
-  labs(title = 'Center')
+ggplot(d,aes(x = value, y = ..count.., colour = position)) + facet_wrap(~variable,scales = "free_x") +
+  geom_density() + theme_dlin() + scale_y_continuous(limits = c(0, 10000))
 
 ```
 
-
+Several conclusions can be drawn from the plot above, all intuitive to someone who has watched the sport. Starting at the top left, centers make the fewest three pointers, followed by power forwards, as indicated by their positvely skewed distributions. Field goals and free throws are similar across all positions. Point guards have the highest number of assists, whereas centers have the highest number of fouls. 
 
 ## <a name="uni_analysis"></a>Univariate Analysis
 
