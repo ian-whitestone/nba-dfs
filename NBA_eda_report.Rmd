@@ -15,11 +15,8 @@ knitr::opts_chunk$set(echo = TRUE)
 - [Introduction](#introduction)
 - [Data Import & Cleaning](#data_import)
 - [Feature Engineering](#features)
-- [Univariate Plots](#uni_plots)
 - [Univariate Analysis](#uni_analysis)
-- [Bivariate Plots](#bi_plots)
 - [Bivariate Analysis](#bi_analysis)
-- [Multivariate Plots](#multi_plots)
 - [Multivariate Analysis](#multi_analysis)
 - [Final Plots and Summary](#final)
 - [Reflection](#reflection)
@@ -323,7 +320,28 @@ player_data = merge(player_data, team_data[,append(rolling_team_variables,c("gam
 
 
 
-## <a name="uni_plots"></a>Univariate Plots
+## <a name="uni_analysis"></a>Univariate Analysis
+
+
+# What is the structure of your dataset?
+# What is/are the main feature(s) of interest in your dataset?
+# What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+# Did you create any new variables from existing variables in the dataset?
+# --> could look at distrbn of home/away for sanity check
+# Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+glimpse(player_data)
+```
+
+A quick glimpse at the player data table reveals that most variables either continuous integers or doubles. Most of the text based variables, such as team or name, are factors. All of the rolling time-window variables appear to be "NA", however, this is due to the ordering of the data. For example, there are not enough games at the beginning to compute a 15 day average.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+summary(player_data)
+```
+
 
 When exploring the impacts on a player's FD points, the first question that comes to mind is about the distribution of FD points.
 
@@ -425,34 +443,7 @@ ggplot(d,aes(x = value, y = ..count.., colour = position)) + facet_wrap(~variabl
 
 Several conclusions can be drawn from the plot above, all intuitive to someone who has watched the sport. Starting at the top left, centers make the fewest three pointers, followed by power forwards, as indicated by their positvely skewed distributions. Field goals and free throws are similar across all positions. Point guards have the highest number of assists, whereas centers have the highest number of fouls. 
 
-## <a name="uni_analysis"></a>Univariate Analysis
-
-
-```{r echo=TRUE, message=FALSE, warning=FALSE}
-glimpse(player_data)
-```
-
-A quick glimpse at the player data table reveals that msot variables either continuous integers or doubles. Most of the text based variables, such as team or name, are factors. All of the rolling time-window variables appear to be "NA", however, this is due to the ordering of the data. For example, there are not enough games at the beginning to compute a 15 day average.
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
-```
-
-## <a name="bi_plots"></a>Bivariate Plots
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-```
-
 ## <a name="bi_analysis"></a>Bivariate Analysis
-
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
-```
-
-## <a name="multi_plots"></a>Multivariate Plots
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##enter code here
