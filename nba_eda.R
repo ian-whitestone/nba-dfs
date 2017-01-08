@@ -15,6 +15,7 @@ source("roll_variable.R")
 library(RcppRoll)
 library(rms)
 source("multiplot.R")
+library(plyr)
 
 ##display.brewer.all() ##view all palettes with this
 palette <- brewer.pal("YlGnBu", n=9)
@@ -59,6 +60,13 @@ player_data[date >= '2013-10-28' & date <= '2014-06-16', season_code:=20132014]
 player_data[date >= '2014-10-28' & date <= '2015-06-16', season_code:=20142015]
 player_data[date >= '2015-10-27' & date <= '2016-06-19', season_code:=20152016]
 
+event_data = event_data %>% join(player_data[,.N,by=.(gameID,date)][,.(gameID,date)])
+
+event_data[,date:=as.Date(date)] ##convert string date to actual date
+event_data[,season_code:=20122013]
+event_data[date >= '2013-10-28' & date <= '2014-06-16', season_code:=20132014]
+event_data[date >= '2014-10-28' & date <= '2015-06-16', season_code:=20142015]
+event_data[date >= '2015-10-27' & date <= '2016-06-19', season_code:=20152016]
 
 # ##JOIN TABLES - FOR FUTURE USE OF EVENT_DATA
 # setkey(player_data,gameID)
@@ -88,6 +96,11 @@ player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variab
 player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FGA', window_size)
 player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FTA', window_size)
 
+window_size = seq(1,3,1)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fd', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'minutes', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FGA', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FTA', window_size)
 
 ##BACK TO BACK GAME VARIABLE
 days_rest=player_data[,.N,by=.(team,date_num)][,.(team,date_num)][order(team,date_num)]
@@ -107,6 +120,13 @@ days_rest[,opp_b2b:=b2b][,b2b:=NULL]
 setkey(player_data,opponent,date_num)
 player_data=player_data[days_rest[,.(team,date_num,opp_b2b)],nomatch=0]
 
+##one-encoding for position
+player_data[, `:=` (pg = 0,sg = 0,sf = 0,pf = 0,c = 0)]
+player_data[position == 'PG', pg := 1]
+player_data[position == 'SG', sg := 1]
+player_data[position == 'SF', sf := 1]
+player_data[position == 'PF', pf := 1]
+player_data[position == 'C', c := 1]
 
 ###TEAM BASED DATA
 ##currently the event data table has one record per game, with statistics for each team
@@ -191,6 +211,7 @@ team_data=team_data[posn_sum,nomatch=0]
 team_data_opp=team_data[,.(gameID,team,pg_fd,sg_fd,sf_fd,pf_fd,c_fd,g_fd,p_fd,team_fd)]
 setnames(team_data_opp,old=c("team","pg_fd","sg_fd","sf_fd","pf_fd","c_fd","g_fd","p_fd","team_fd"),
          new=c("opponent","opp_pg_fd","opp_sg_fd","opp_sf_fd","opp_pf_fd","opp_c_fd","opp_g_fd","opp_p_fd","opp_fd"))
+setkey(team_data,gameID,opponent)
 setkey(team_data_opp,gameID,opponent)
 team_data=team_data[team_data_opp,nomatch=0]
 
@@ -219,11 +240,13 @@ min_variables = colnames(player_data)[grepl('minutes_\\w*\\d', colnames(player_d
 fd_variables = colnames(player_data)[grepl('fd_\\w*\\d', colnames(player_data))]
 fta_variables = colnames(player_data)[grepl('FTA_\\w*\\d', colnames(player_data))]
 fga_variables = colnames(player_data)[grepl('FGA_\\w*\\d', colnames(player_data))]
+pos_feature = c('pg','sg','sf','pf','c')
   
-base_variables = c("fd_5","fd_15","fd_25","fd_35","fd_45","fd_55")
-all_variables = c(fd_variables,min_variables,fta_variables,fga_variables,'b2b','opp_b2b','homeaway')
+base_variables = c("fd_1","fd_2","fd_3","fd_5","fd_15","fd_25","fd_35","fd_45","fd_55")
+all_variables = c(fd_variables,min_variables,fta_variables,fga_variables,
+                    'b2b','opp_b2b','homeaway','starter',pos_feature)
 
-
+##filter training on players with fd>0???
 training = player_data[season_code != 20152016]
 test = player_data[season_code == 20152016]
 ytest = select(test, gameID, player, fd)
@@ -233,7 +256,7 @@ fmla = reformulate(base_variables, response='fd')
 
 #get model stats
 mdl=lm(fmla, data = training)
-# mdl %>% summary
+mdl %>% summary
 
 #test model on test data
 ytest$mdl = predict(mdl, test)
@@ -382,13 +405,49 @@ summary(player_data$b2b)
 ###### BIVARIATE PLOTS #######
 ##############################
 
-##corrplot
-M=cor(player_data[,.(fd,minutes,starter,homeaway,fouls)])
-corrplot.mixed(M,lower="number",upper='circle')
+##depth at position
+team_depth = player_data[, .(pos_depth=.N - 1) ,by=.(gameID,team,position)][order(gameID,team,position)]
+player_data = player_data %>% inner_join(team_depth)
 
 ##minutes
 ggplot(player_data,aes(x = minutes, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
   labs(title = 'NBA Fanduel Points versus minutes', x = 'minutes', y = 'fanduel points') +
+  geom_smooth(method = "lm", se = FALSE,colour='black') + 
+  geom_text(aes(label = paste("R^2: ",mean(r2$r2),sep="")),parse=T,x=20,y=20)
+
+##labelled R2s on plot
+d<-data.frame(cat = sample(c("a","b","c"),100,replace=T), xval=seq_len(100), yval = rnorm(100))
+r2<-ddply(player_data,.(position),function(x) summary(lm(x$fd ~ x$minutes))$r.squared)
+names(r2)<-c("position","r2")
+g<-ggplot(d, aes(x = xval, y = yval, group = cat))+geom_point(aes(color=cat))
+g<-g+geom_smooth(method="lm",aes(color=cat),se=F)
+g+geom_text(data=r2,aes(color=cat, label = paste("R^2: ", r2,sep="")),parse=T,x=100,y=c(1,1.25,1.5), show_guide=F)
+
+
+##minutes vs depth at pos
+ggplot(player_data,aes(x = pos_depth, y = minutes)) + geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points versus minutes', x = 'pos_depth', y = 'minutes') +
+  geom_smooth(method = "lm", se = FALSE,colour='black')
+
+##INSPECT pos_depth > 5
+View(player_data[pos_depth > 5]) ##-->duplicate player records
+##get all dupes
+View(player_data[,.(count=.N),by=.(gameID,team,player)][count>1,.(gameID,player)])
+nrow(player_data[,.(count=.N),by=.(gameID,team,player)][count>1,.(gameID,player)])
+
+##define player efficiency as fd points per minute
+player_data[,eff := fd/minutes]
+
+ggplot(player_data,aes(x = eff, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points versus minutes', x = 'minutes', y = 'fanduel points')
+
+##examine some outliers
+View(player_data[eff>3,.(gameID,player,minutes,fd,`3FGM`,FGM,FTM,rebounds,assists,blocks,steals,turnovers)][0:10])
+#--> all players played <3 minutes
+
+##filter and re-plot
+ggplot(player_data[minutes>5,],aes(x = eff, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points versus minutes', x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points') +
   geom_smooth(method = "lm", se = FALSE,colour='black')
 
 ##starter
@@ -396,11 +455,31 @@ ggplot(player_data,aes(x = starter, y = fd)) + geom_point(colour=palette[5]) + t
   labs(title = 'NBA Fanduel Points - Effect of Starting', x = 'starter (binary)', y = 'fanduel points') +
   geom_smooth(method = "lm", se = FALSE,colour='black')
 
+
+##corrplot - general
+M=cor(player_data[,.(fd,minutes,starter,homeaway,fouls,FGA,pos_depth)])
+corrplot.mixed(M,lower="number",upper='circle')
+
+##corrplot - rolling variables
+M2=cor(player_data[is.na(fd_1) == FALSE & is.na(fd_2) == FALSE & is.na(fd_3) == FALSE &
+                     is.na(fd_5) == FALSE & is.na(fd_15) == FALSE & is.na(fd_25) == FALSE & 
+                     is.na(fd_35) == FALSE & is.na(fd_55) == FALSE,
+                   .(fd,fd_1,fd_2,fd_3,fd_5,fd_15,fd_25,fd_35,fd_55)])
+
+corrplot.mixed(M2,lower="number",upper='circle')
+
+M3=cor(player_data[is.na(minutes_1) == FALSE & is.na(minutes_2) == FALSE & is.na(minutes_3) == FALSE &
+                     is.na(minutes_5) == FALSE & is.na(minutes_15) == FALSE & is.na(minutes_25) == FALSE & 
+                     is.na(minutes_35) == FALSE & is.na(minutes_55) == FALSE,
+                   .(fd,minutes_1,minutes_2,minutes_3,minutes_5,minutes_15,minutes_25,minutes_35,minutes_55)])
+
+corrplot.mixed(M3,lower="number",upper='circle')
+
+
 ##homeaway
 ggplot(player_data,aes(x = homeaway, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
   labs(title = 'NBA Fanduel Points - Effect of Playing at Home', x = 'home or away (binary)', y = 'fanduel points') +
   geom_smooth(method = "lm", se = FALSE,colour='black')
-
 
 ##b2b 
 ggplot(player_data,aes(x = b2b, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
@@ -409,8 +488,6 @@ ggplot(player_data,aes(x = b2b, y = fd)) + geom_point(colour=palette[5]) + theme
 
 
 ##minutes played by position
-p + geom_boxplot() + coord_flip()
-
 ggplot(player_data,aes(factor(position),minutes)) + geom_boxplot() + theme_dlin() +
   labs(title = 'NBA Minutes Played By Position')
 
@@ -419,9 +496,71 @@ ggplot(player_data,aes(factor(position),fd)) + geom_boxplot() + theme_dlin() +
   labs(title = 'NBA Fanduel Points By Position')
 
 ##points scored by team
-ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(factor(team),team_fd)) + geom_boxplot() + theme_dlin() +
-  labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',y='team total fanduel points') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)][, team_fd]
 
+ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(reorder(factor(team),-team_fd,median),team_fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',y='team total fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+##points allowed by team
+ggplot(team_data[season_code==20122013,.N,by=.(gameID,team,opp_fd)],aes(reorder(factor(team),-opp_fd,median),opp_fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'FD Points Allowed by Team for the 2015-2016 Season',x='team',y='team total allowed fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+##STACKING
+##player point correlations
+C1 = cor(player_data[,.(fd,team_fd,opp_fd)])
+C2 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,team_fd,opp_fd)])
+C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,
+                      opp_pg_fd,opp_sg_fd,opp_sf_fd,opp_pf_fd,opp_c_fd)])
+
+##can also do guards vs centers
+
+##do correlation among starters
+
+
+
+
+
+
+
+
+
+
+
+##############################
+##### MULTIVARIATE PLOTS #####
+##############################
+
+##points allowed by team, do one coloured dot for EACH SEASON
+ggplot(team_data[season_code==20142015,.N,by=.(gameID,team,opp_fd)],aes(factor(team),opp_fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'FD Points Allowed by Team for the 2015-2016 Season',x='team',y='team total allowed fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+##points allowed by team to each position, do one coloured dot for each position
+
+pa_pos = team_data[season_code==20122013,.(opp_pg_fd = mean(opp_pg_fd), opp_sg_fd = mean(opp_sg_fd),
+                                  opp_sf_fd = mean(opp_sf_fd),opp_pf_fd = mean(opp_pf_fd),opp_c_fd = mean(opp_c_fd)),
+          by = .(season_code,team)]
+
+pa_pos = melt(pa_pos,id.vars = c('season_code','team'))
+
+ggplot(pa_pos[season_code==20122013,],aes(factor(team),value,colour=factor(variable),shape=factor(variable))) + geom_point() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points Allowed by Team for the 2015-2016 Season',x='team',y='team total allowed fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+ggplot(pa_pos[season_code==20122013,],aes(factor(team),value,colour=factor(variable),shape=factor(variable))) + geom_point() + theme_dlin() +
+  facet_grid(variable~) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+##lebrons points against certain teams
+
+
+##########################################
+##MISSING EVENT DATA FOR 2015 2016!!!#######
+##########################################
 
 ####order the graph so highest points on the left (order by median!)
 
@@ -437,15 +576,16 @@ dim(player_data) ##dim[1]=nrows, dim[2]=ncolumns
 
 
 ###FEATURES TO ADD
-##injuries at PF/C or G/SG/SF!! or depth at position feature
 ##try and quantify injuries as lost shot attempts that will become available!
 ##defensive efficiency statistic (points allowed, FGA allowed, points allowed to each posn)
 ##usage rate
 ##points per minute
 ##weak rebounding teams? (especially important for centers..opp_rebounds allowed feature)
 ##teams with lots of turnovers??
-##starter feature!
-##change binary features to factors!
+##starter is resting/injured.
+
+##trailing turnovers
+##trailing points (actual basketball points)
 
 ##MODELLING
 ##look at your notes file, and look at DFN site for other ideas

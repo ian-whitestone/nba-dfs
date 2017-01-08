@@ -57,7 +57,9 @@ library(reshape2)
 library(corrplot)
 source("roll_variable.R")
 library(RcppRoll)
+library(rms)
 source("multiplot.R")
+library(plyr)
 
 palette = brewer.pal("YlGnBu", n=9)
 
@@ -103,6 +105,12 @@ player_data[date >= '2013-10-28' & date <= '2014-06-16', season_code:= 20132014]
 player_data[date >= '2014-10-28' & date <= '2015-06-16', season_code:= 20142015]
 player_data[date >= '2015-10-27' & date <= '2016-06-19', season_code:= 20152016]
 
+event_data = event_data %>% join(player_data[,.N,by=.(gameID,date)][,.(gameID,date)])
+
+event_data[,season_code:=20122013]
+event_data[date >= '2013-10-28' & date <= '2014-06-16', season_code:=20132014]
+event_data[date >= '2014-10-28' & date <= '2015-06-16', season_code:=20142015]
+event_data[date >= '2015-10-27' & date <= '2016-06-19', season_code:=20152016]
 ##filter out players who didnt play
 player_data = filter(player_data,minutes > 0)
 
@@ -151,6 +159,13 @@ roll_variable_mean = function(d, target, windows) {
 
 ##add rolling variables
 window_size = seq(5,55,10)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fd', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'minutes', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FGA', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FTA', window_size)
+
+
+window_size = seq(1,3,1)
 player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fd', window_size)
 player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'minutes', window_size)
 player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FGA', window_size)
@@ -322,26 +337,11 @@ player_data = merge(player_data, team_data[,append(rolling_team_variables,c("gam
 
 ## <a name="uni_analysis"></a>Univariate Analysis
 
-
-# What is the structure of your dataset?
-# What is/are the main feature(s) of interest in your dataset?
-# What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
-# Did you create any new variables from existing variables in the dataset?
-# --> could look at distrbn of home/away for sanity check
-# Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
-
-
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 glimpse(player_data)
 ```
 
 A quick glimpse at the player data table reveals that most variables either continuous integers or doubles. Most of the text based variables, such as team or name, are factors. All of the rolling time-window variables appear to be "NA", however, this is due to the ordering of the data. For example, there are not enough games at the beginning to compute a 15 day average.
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-summary(player_data)
-```
-
 
 When exploring the impacts on a player's FD points, the first question that comes to mind is about the distribution of FD points.
 
@@ -423,11 +423,188 @@ multiplot(p4, p1, p2, p3, cols=1)
 
 The distributions for the rolling variables look similar to the base minutes distribution. They differ in that the rolling minutes have fewer occurences of low-minute games. Low-minute games (i.e <5 min) are presumably due to cases where a player was injured mid-game, a player was brought in to close a blow-out game, or the player was pulled due to poor play. Intuitevely, these cases should not occur over consecutive games. 
 
+## <a name="bi_analysis"></a>Bivariate Analysis
+
+Through the univariate analysis, an understanding of the underlying distributions and structure of the dataset was achieved. Next, the relationships between various feature variables and a player's FD points is explored.
+
+A logical starting point is to look at how a player's previous FD points predicts his points on a given night. The plot below examines one of the rolling features created, the mean of the FD points from the last 5 games.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+r2 = summary(lm(player_data$fd ~ player_data$fd_5))$r.squared
+
+p = ggplot(player_data,aes(x = fd_5, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points versus Previous Points', x = 'fd points mean of last 5 games', y = 'fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
+
+p + annotate("text", x = 60, y = 75, parse=TRUE, label=paste('R^2: ',substr(as.character(r2),0,4)), family="serif", fontface="italic", colour="black", size=5)
+
+```
+
+There appears to be a strong trend between FD points and the average of previous FD points. In general, players who put up a lot of points continue to do so, with the opposite holding true as well.
+
+While previous FD points is a strong feature itself, it doesn't account for any factors that may impact a players performance on a nightly basis. A powerful model would be able to explain deviations from a player's mean. To explore one of these factors, a player's playing time is plotted against his FD points.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+r2 = summary(lm(player_data$fd ~ player_data$minutes))$r.squared
+
+
+p = ggplot(player_data,aes(x = minutes, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points versus minutes', x = 'minutes', y = 'fanduel points') +
+  geom_smooth(method = "lm", se = FALSE,colour='black') 
+
+p + annotate("text", x = 15, y = 55, parse=TRUE, label=paste('R^2: ',substr(as.character(r2),0,4)), family="serif", fontface="italic", colour="black", size=5)
+```
+
+The plot above shows that there is a very strong relationship between minutes played and FD points, R2 ~ 0.65. Minutes correlates significantly stronger than past FD points. This is intuitive, as more time spent on the court allows players produce more, via shots, rebounds, assists etc. It also does a better job of explaining variation from a player's mean, as some nights a player will play more/less as dictated by the flow of the game. 
+
+Some people would argue that a more informative variable is a player's FD points per minute, a measure of efficiency.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, results = 'hide'}
+##define player efficiency feature
+player_data[, eff := fd/minutes]
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(player_data,aes(x = eff, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points versus Effeciency', x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points')
+```
+
+While there appears to be some trend, the data is relatively noisy, due to the presence of some high efficiencies.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#examine some outliers
+glimpse(player_data[eff>3,.(gameID,player,minutes,fd,`3FGM`,FGM,FTM,rebounds,assists,blocks,steals,turnovers)][0:10])
+```
+
+All of these outliers appear to be due to scenarios where players recorded multiple points, assists or rebounds in under 3 minutes; clearly un-sustainable production.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##filter and re-plot
+ggplot(player_data[minutes>5,],aes(x = eff, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points versus minutes', x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points') +
+  geom_smooth(method = "lm", se = FALSE,colour='black')
+
+```
+
+After filtering on minutes>5 and re-plotting, the positive trend between efficiency and FD points becomes more clear.
+
+
+When building a predictive model, neither minutes played or efffiency will be available before the game. As a result, these variables cannot be used in a model. In order to get a quick glimpse of the predictive power of various features, a correlation matrix is used.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##corrplot - general
+M=cor(player_data[,.(fd,minutes,starter,homeaway,fouls,FGA)])
+corrplot.mixed(M,lower="number",upper='circle')
+```
+
+An additional feature is created to predict minutes played. Playing time can be impacted by injuries, fouls, blowout games or games that go to overtime. In order to predict such instances, more advanced models would be required. A simple way to account for a potential increase or decrease in playing time is to measure the depth (i.e. number of players at each position).
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+##build position depth feature
+team_depth = player_data[, .(pos_depth=.N - 1) ,by=.(gameID,team,position)]
+player_data = player_data %>% inner_join(team_depth)
+```
+
+If a starting or backup point guard is injured, the depth at PG will decrease by 1 and signal a potential increase in playing time for the remaining point guards.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##minutes vs depth at pos
+ggplot(player_data,aes(x = pos_depth, y = minutes)) + geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points versus minutes', x = 'pos_depth', y = 'minutes') +
+  geom_smooth(method = "lm", se = FALSE,colour='black')
+```
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+##INSPECT pos_depth > 5
+View(player_data[pos_depth > 5]) ##-->duplicate player records
+##get all dupes
+View(player_data[,.(count=.N),by=.(gameID,team,player)][count>1,.(gameID,player)])
+nrow(player_data[,.(count=.N),by=.(gameID,team,player)][count>1,.(gameID,player)])
+
+
+```
+
+add commentary
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+M3=cor(player_data[is.na(minutes_1) == FALSE & is.na(minutes_2) == FALSE & is.na(minutes_3) == FALSE &
+                     is.na(minutes_5) == FALSE & is.na(minutes_15) == FALSE & is.na(minutes_25) == FALSE & 
+                     is.na(minutes_35) == FALSE & is.na(minutes_55) == FALSE,
+                   .(fd,minutes_1,minutes_2,minutes_3,minutes_5,minutes_15,minutes_25,minutes_35,minutes_55)])
+
+corrplot.mixed(M3,lower="number",upper='circle')
+
+```
+
+add commentary
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+##minutes played by position
+ggplot(player_data,aes(factor(position),minutes)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'NBA Minutes Played By Position')
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+##corrplot - rolling variables
+M2=cor(player_data[is.na(fd_1) == FALSE & is.na(fd_2) == FALSE & is.na(fd_3) == FALSE &
+                     is.na(fd_5) == FALSE & is.na(fd_15) == FALSE & is.na(fd_25) == FALSE & 
+                     is.na(fd_35) == FALSE & is.na(fd_55) == FALSE,
+                   .(fd,fd_1,fd_2,fd_3,fd_5,fd_15,fd_25,fd_35,fd_55)])
+
+corrplot.mixed(M2,lower="number",upper='circle')
+```
+
+add commentary
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+##points scored by position (revisited)
+ggplot(player_data,aes(factor(position),fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points By Position')
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+##points scored by team
+ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(factor(team),team_fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',y='team total fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+##points allowed by team
+ggplot(team_data[season_code==20142015,.N,by=.(gameID,team,opp_fd)],aes(factor(team),opp_fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'FD Points Allowed by Team for the 2015-2016 Season',x='team',y='team total allowed fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+####do some analysis on blow-out games
+###maybe a heat map of points scored by quarter?
+##fd points vs OT games?
+
+##teams who commit high turnovers?
+
+
+## <a name="multi_analysis"></a>Multivariate Analysis
+
 The formula for FD points was shown earlier. The plots below show how the distributions of relevent statistics varies between positions.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-player_data[, grouped_posn := ifelse(position %in% c('PG','SG','SF'),1,2)]
-
 base_stats = player_data[,.(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = sum(FTM)/.N,
                           rebounds = sum(rebounds)/.N, assists = sum(assists)/.N,
                           blocks = sum(blocks)/.N, steals = sum(steals)/.N,
@@ -443,19 +620,10 @@ ggplot(d,aes(x = value, y = ..count.., colour = position)) + facet_wrap(~variabl
 
 Several conclusions can be drawn from the plot above, all intuitive to someone who has watched the sport. Starting at the top left, centers make the fewest three pointers, followed by power forwards, as indicated by their positvely skewed distributions. Field goals and free throws are similar across all positions. Point guards have the highest number of assists, whereas centers have the highest number of fouls. 
 
-## <a name="bi_analysis"></a>Bivariate Analysis
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
-```
-
-
-## <a name="multi_analysis"></a>Multivariate Analysis
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
-```
-
+- explore covariance...versus teammates, versus opponents
+- PLOT FD VS OT!!
+- plot FD vs high scoring games
 
 ## <a name="final"></a>Final Plots and Summary
 
@@ -466,11 +634,9 @@ Several conclusions can be drawn from the plot above, all intuitive to someone w
 
 ## <a name="reflection"></a>Reflection
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
-```
-
-
+- add other data sources
+--> vegas odds, total projected points --> target players in high scoring games
+--> low point spreads, more likely to go to overtime
 
 echo=False emits the code
 eval=False prevents the code from running!
