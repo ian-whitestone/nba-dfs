@@ -313,7 +313,7 @@ team_data_opp = team_data[,.(gameID,team,pg_fd,sg_fd,sf_fd,pf_fd,c_fd,g_fd,p_fd,
 setnames(team_data_opp,old = c("team","pg_fd","sg_fd","sf_fd","pf_fd","c_fd","g_fd","p_fd","team_fd"),
          new = c("opponent","opp_pg_fd","opp_sg_fd","opp_sf_fd","opp_pf_fd","opp_c_fd","opp_g_fd",
                  "opp_p_fd","opp_fd"))
-
+setkey(team_data,gameID,opponent)
 setkey(team_data_opp,gameID,opponent)
 team_data = team_data[team_data_opp,nomatch = 0]
 
@@ -493,8 +493,16 @@ When building a predictive model, neither minutes played or efffiency will be av
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##corrplot - general
 M=cor(player_data[,.(fd,minutes,starter,homeaway,fouls,FGA)])
-corrplot.mixed(M,lower="number",upper='circle')
+corrplot.mixed(M,lower="number",upper='pie')
 ```
+
+The homeaway variable has the weakest corrleation with FD points. As shown below, the mean fd score is only 0.6 points higher for players at home.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+##mean fd points home versus away
+player_data[,.(mean_score=mean(fd)),by = homeaway]
+```
+
 
 An additional feature is created to predict minutes played. Playing time can be impacted by injuries, fouls, blowout games or games that go to overtime. In order to predict such instances, more advanced models would be required. A simple way to account for a potential increase or decrease in playing time is to measure the depth (i.e. number of players at each position).
 
@@ -576,7 +584,7 @@ ggplot(player_data,aes(factor(position),fd)) + geom_boxplot() + theme_dlin() +
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 ##points scored by team
-ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(factor(team),team_fd)) + geom_boxplot() + theme_dlin() +
+ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(reorder(factor(team),-team_fd,median),team_fd)) + geom_boxplot() + theme_dlin() +
   labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',y='team total fanduel points') + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
@@ -585,19 +593,107 @@ ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(facto
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-
 ##points allowed by team
-ggplot(team_data[season_code==20142015,.N,by=.(gameID,team,opp_fd)],aes(factor(team),opp_fd)) + geom_boxplot() + theme_dlin() +
+ggplot(team_data[season_code==20122013,.N,by=.(gameID,team,opp_fd)],aes(reorder(factor(team),-opp_fd,median),opp_fd)) + geom_boxplot() + theme_dlin() +
   labs(title = 'FD Points Allowed by Team for the 2015-2016 Season',x='team',y='team total allowed fanduel points') + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ```
 
-####do some analysis on blow-out games
-###maybe a heat map of points scored by quarter?
-##fd points vs OT games?
+##STACKING
 
-##teams who commit high turnovers?
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##player point correlations
+col1 <- colorRampPalette(c("#7F0000","red","#FF7F00","yellow","white", 
+        "cyan", "#007FFF", "blue","#00007F"))
+col2 <- colorRampPalette(c("#67001F", "#B2182B", "#D6604D", "#F4A582", "#FDDBC7",
+            "#FFFFFF", "#D1E5F0", "#92C5DE", "#4393C3", "#2166AC", "#053061"))  
+col3 <- colorRampPalette(c("red", "white", "blue")) 
+col4 <- colorRampPalette(c("#7F0000","red","#FF7F00","yellow","#7FFF7F", 
+            "cyan", "#007FFF", "blue","#00007F"))   
+
+C1 = cor(player_data[,.(fd,team_fd,opp_fd)])
+corrplot.mixed(C1,lower="number",upper='pie',col=col2(10))
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+C2 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,team_fd,opp_fd)])
+corrplot.mixed(C2,lower="number",upper='circle',col=col2(10))
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,opp_pg_fd,opp_sg_fd,opp_sf_fd,opp_pf_fd,opp_c_fd)])
+corrplot.mixed(C3,lower="number",upper='circle',col=col2(10))
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+C4 = cor(team_data[,.(g_fd,p_fd,opp_g_fd,opp_c_fd)])
+corrplot.mixed(C4,lower="number",upper='circle',col=col2(10))
+```
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, results = 'hide'}
+base_starter_data = player_data[starter ==1,.(gameID,team,fd,position)]
+starter_data = dcast(base_starter_data,gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'))
+starter_data = as.data.table(starter_data)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+C5 = cor(starter_data[is.na(PG) == FALSE & is.na(SG) == FALSE & is.na(SF) == FALSE & is.na(PF) == FALSE & is.na(C) == FALSE,.(PG,SG,SF,PF,C)])
+corrplot.mixed(C5,lower="number",upper='circle',col=col2(10))
+```
+
+
+Next, I examine the impact of high scoring games. First, the team scores (i.e. actual total points scored) are joined to the player data table. 
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, results = 'hide'}
+player_data = player_data %>% inner_join(event_data[,.(gameID,home_score,away_score)])
+player_data[,team_score := home_score]
+player_data[team == away_team, team_score := away_score]
+
+player_data[, score_bucket := 1]
+player_data[team_score > 75, score_bucket := 2]
+player_data[team_score > 100, score_bucket := 3]
+player_data[team_score > 125, score_bucket := 4]
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(player_data[,.(mean_fd = mean(fd)),by = score_bucket],aes(x = score_bucket, y = mean_fd)) + 
+  geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points - Effect of High Scoring Games', x = 'score bucket', y = 'average fanduel points') +
+  geom_smooth(method = "lm", se = FALSE,colour='black')
+```
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE,results='hide'}
+###opponent rebounds and turnovers
+opp_stats = team_data[,.(gameID,team,rebounds,turnovers)]
+setnames(opp_stats,old=c('team','rebounds','turnovers'),new=c('opponent','opp_rebounds','opp_turnovers'))
+
+player_data = player_data %>% inner_join(opp_stats)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(player_data,aes(x = opp_turnovers, y = fd)) + 
+  geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points - Effect of Opponent Turnovers', x = 'opponent turnovers', y = 'fanduel points') +
+  geom_smooth(method = "lm", se = FALSE,colour='black')
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(player_data[position=='C'],aes(x = opp_rebounds, y = fd)) + 
+  geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points - Effect of Opponent Rebounds', x = 'opponent rebounds', y = 'fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
+```
 
 
 ## <a name="multi_analysis"></a>Multivariate Analysis
@@ -621,9 +717,44 @@ ggplot(d,aes(x = value, y = ..count.., colour = position)) + facet_wrap(~variabl
 Several conclusions can be drawn from the plot above, all intuitive to someone who has watched the sport. Starting at the top left, centers make the fewest three pointers, followed by power forwards, as indicated by their positvely skewed distributions. Field goals and free throws are similar across all positions. Point guards have the highest number of assists, whereas centers have the highest number of fouls. 
 
 
-- explore covariance...versus teammates, versus opponents
-- PLOT FD VS OT!!
-- plot FD vs high scoring games
+As an extension of what was shown above, I plot the total fd points scored/allowed by the teams over each season.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##enter code here
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##points allowed by team to each position, do one coloured dot for each position
+pa_pos = team_data[season_code==20122013,.(opp_pg_fd = mean(opp_pg_fd), opp_sg_fd = mean(opp_sg_fd),
+                                  opp_sf_fd = mean(opp_sf_fd),opp_pf_fd = mean(opp_pf_fd),opp_c_fd = mean(opp_c_fd)),
+          by = .(season_code,team)]
+
+pa_pos = melt(pa_pos,id.vars = c('season_code','team'))
+
+ggplot(pa_pos[season_code==20122013,],aes(factor(team),value,colour=factor(variable),shape=factor(variable))) + geom_point() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points Allowed by Team for the 2015-2016 Season',x='team',y='team mean total allowed fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##lebrons points against certain teams
+lebron = player_data[player == 'LeBron James',.(mean_fd = mean(fd), count = .N), by = .(opponent,season_code)]
+
+ggplot(lebron,aes(reorder(factor(opponent),-mean_fd),mean_fd,colour=factor(season_code),shape=factor(season_code))) + geom_point() + 
+  theme_dlin() + facet_grid(season_code~.) +
+  labs(title = 'LeBron James Average Fanduel Points Against Each Team',x='team',y='average fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
 
 ## <a name="final"></a>Final Plots and Summary
 

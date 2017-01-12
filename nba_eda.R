@@ -188,6 +188,10 @@ setkey(team_data,gameID,opponent)
 player_data=player_data[team_tot_fd,nomatch=0]
 team_data=team_data[team_tot_fd,nomatch=0]
 
+###opponent rebounds and turnovers
+opp_stats = team_data[,.(team,rebounds,turnovers)]
+opp_stats[,`:=` (opponent = team, team = NULL)]
+
 ##position points summary
 ##calculate the total FD points for each team by position
 ##in some cases, teams played w/o a center. for those, use the post statistic (p_fd)
@@ -496,8 +500,6 @@ ggplot(player_data,aes(factor(position),fd)) + geom_boxplot() + theme_dlin() +
   labs(title = 'NBA Fanduel Points By Position')
 
 ##points scored by team
-player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)][, team_fd]
-
 ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(reorder(factor(team),-team_fd,median),team_fd)) + geom_boxplot() + theme_dlin() +
   labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',y='team total fanduel points') + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
@@ -513,33 +515,50 @@ C1 = cor(player_data[,.(fd,team_fd,opp_fd)])
 C2 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,team_fd,opp_fd)])
 C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,
                       opp_pg_fd,opp_sg_fd,opp_sf_fd,opp_pf_fd,opp_c_fd)])
+C4 = cor(player_data[,.(g_fd,p_fd,opp_g_fd,opp_c_fd)])
+##do correlation among starters??
+dcast(player_data[gameID=='20121030-boston-celtics-at-miami-heat' & starter ==1,
+                  .(team,fd,position)],team ~ position,fun.aggregate = min, value.var = team)
 
-##can also do guards vs centers
+##effect of high scoring games
+player_data = player_data %>% inner_join(event_data[,.(gameID,home_score,away_score)])
+player_data[,team_score := home_score]
+player_data[team == away_team, team_score := away_score]
 
-##do correlation among starters
+player_data[, score_bucket := 1]
+player_data[team_score > 75, score_bucket := 2]
+player_data[team_score > 100, score_bucket := 3]
+player_data[team_score > 125, score_bucket := 4]
 
-
-
-
-
-
-
-
-
+ggplot(player_data[,.(mean_fd = mean(fd)),by = score_bucket],aes(x = score_bucket, y = mean_fd)) + 
+  geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points - Effect of High Scoring Games', x = 'score bucket', y = 'average fanduel points') +
+  geom_smooth(method = "lm", se = FALSE,colour='black')
 
 
 ##############################
 ##### MULTIVARIATE PLOTS #####
 ##############################
 
-##points allowed by team, do one coloured dot for EACH SEASON
-ggplot(team_data[season_code==20142015,.N,by=.(gameID,team,opp_fd)],aes(factor(team),opp_fd)) + geom_boxplot() + theme_dlin() +
-  labs(title = 'FD Points Allowed by Team for the 2015-2016 Season',x='team',y='team total allowed fanduel points') + 
+##points allowed by team over seasons
+ggplot(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(season_code,team)],
+       aes(factor(team),mean_opp_fd,colour=factor(season_code),shape=factor(season_code))) + geom_point() + 
+  theme_dlin() + facet_grid(season_code~.) +
+  labs(title = 'FD Points Allowed by Team',x='team',y='average fanduel points') + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
+team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(season_code,team)][order(season_code,mean_opp_fd)]
+
+##points scored by team over seasons
+ggplot(team_data[,.(mean_team_fd = mean(team_fd)),by=.(season_code,team)],
+       aes(factor(team),mean_team_fd,colour=factor(season_code),shape=factor(season_code))) + geom_point() + 
+  theme_dlin() + facet_grid(season_code~.) +
+  labs(title = 'FD Points Scored by Team',x='team',y='average fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+team_data[,.(mean_team_fd = mean(team_fd)),by=.(season_code,team)][order(season_code,mean_team_fd)]
 
 ##points allowed by team to each position, do one coloured dot for each position
-
 pa_pos = team_data[season_code==20122013,.(opp_pg_fd = mean(opp_pg_fd), opp_sg_fd = mean(opp_sg_fd),
                                   opp_sf_fd = mean(opp_sf_fd),opp_pf_fd = mean(opp_pf_fd),opp_c_fd = mean(opp_c_fd)),
           by = .(season_code,team)]
@@ -547,26 +566,16 @@ pa_pos = team_data[season_code==20122013,.(opp_pg_fd = mean(opp_pg_fd), opp_sg_f
 pa_pos = melt(pa_pos,id.vars = c('season_code','team'))
 
 ggplot(pa_pos[season_code==20122013,],aes(factor(team),value,colour=factor(variable),shape=factor(variable))) + geom_point() + theme_dlin() +
-  labs(title = 'NBA Fanduel Points Allowed by Team for the 2015-2016 Season',x='team',y='team total allowed fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-
-ggplot(pa_pos[season_code==20122013,],aes(factor(team),value,colour=factor(variable),shape=factor(variable))) + geom_point() + theme_dlin() +
-  facet_grid(variable~) + 
+  labs(title = 'NBA Fanduel Points Allowed by Team for the 2015-2016 Season',x='team',y='team mean total allowed fanduel points') + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ##lebrons points against certain teams
+lebron = player_data[player == 'LeBron James',.(mean_fd = mean(fd), count = .N), by = .(opponent,season_code)]
 
-
-##########################################
-##MISSING EVENT DATA FOR 2015 2016!!!#######
-##########################################
-
-####order the graph so highest points on the left (order by median!)
-
-
-##########IAN TO TO#########
-###manually fix mising posns
+ggplot(lebron,aes(reorder(factor(opponent),-mean_fd),mean_fd,colour=factor(season_code),shape=factor(season_code))) + geom_point() + 
+  theme_dlin() + facet_grid(season_code~.) +
+  labs(title = 'LeBron James Average Fanduel Points Against Each Team',x='team',y='average fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 
 ##USEFUL Funcs
