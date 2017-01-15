@@ -87,11 +87,9 @@ player_data[position == 'G',position:= 'SG']
 ```
 
 ## <a name="features"></a>Feature Engineering
-NOTE: this section is not required as part of the final project but was included for reference as these engineered variables are included in the EDA.
-
 Creating powerful predictions relies not only on a good model, but significant features that represent underlying effects.
 
-As the underlying data contains base-level statistics, the first step involves creating a variable for the Fanduel fantasy points. Other data cleaning and merging steps are documented below.
+As the original data only contains base-level statistics, the first step involves creating a variable for the Fanduel fantasy points. Other data cleaning and merging steps are documented below.
 
 ```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ##calculate fanduel points
@@ -126,7 +124,7 @@ player_data[team==away_team,homeaway:= 0]
 
 ```
 
-Next, a function is created to calculate rolling averages for any statistic. The function takes in a data frame, a target field to calculate the rollign averages for, and a window variable in the form seq(starting_window,max_window,increment).
+Next, a function is created to calculate rolling averages for any statistic. The function takes in a data frame, a target field for the rolling averages, and a window variable in the form seq(starting_window,max_window,increment).
 
 ```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 
@@ -282,9 +280,10 @@ The code below aggregates the FD points by game,team and position. These results
 
 The final result in player_data will look like:
 
-**player      position  team opponent ... ...   opp_fd_5 opp_p_fd_5 opp_g_fd_5**
-<br>
-Chris Bosh     PF       MIA   BOS     ... ...   3.221    5.662      6.123
+| player     | position | team | opponent | ... | opp_fd_5 | opp_p_fd_5 | opp_g_fd_5 | ... |
+|------------|----------|------|----------|-----|----------|------------|------------|-----|
+| Chris Bosh | PF       | MIA  | BOS      | ... | 3.221    | 5.662      | 6.123      | ... |
+| ...        | ...      | ...  | ...      | ... | ...      | ...        | ...        | ... |
 
 where the last three fields are the average FD points given up by Boston to opposing teams, C/PFs, and PG/SG/SFs respectively.
 
@@ -635,18 +634,23 @@ corrplot.mixed(C4,lower="number",upper='circle',col=col2(10))
 ```
 
 
+--add opposing starters in this?
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results = 'hide'}
-base_starter_data = player_data[starter ==1,.(gameID,team,fd,position)]
-starter_data = dcast(base_starter_data,gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'))
+starter_data = dcast(player_data[starter == 1,],gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'))
 starter_data = as.data.table(starter_data)
 ```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 C5 = cor(starter_data[is.na(PG) == FALSE & is.na(SG) == FALSE & is.na(SF) == FALSE & is.na(PF) == FALSE & is.na(C) == FALSE,.(PG,SG,SF,PF,C)])
-corrplot.mixed(C5,lower="number",upper='circle',col=col2(10))
+corrplot.mixed(C5,lower="number",upper='circle',col=col2(4))
 ```
 
+player_data[starter == 1,] %>% dcast(date + team ~ position, value.var = c('fd')) %>% select(C, PF, PG, SF, SG) %>% cor %>% round(2)
+
+starter_data = dcast(player_data[starter == 1,],gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'))
+starter_data = as.data.table(starter_data)
+cor(starter_data[is.na(PG) == FALSE & is.na(SG) == FALSE & is.na(SF) == FALSE & is.na(PF) == FALSE & is.na(C) == FALSE,.(PG,SG,SF,PF,C)]) %>% round(2)
 
 Next, I examine the impact of high scoring games. First, the team scores (i.e. actual total points scored) are joined to the player data table. 
 

@@ -515,7 +515,9 @@ C1 = cor(player_data[,.(fd,team_fd,opp_fd)])
 C2 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,team_fd,opp_fd)])
 C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,
                       opp_pg_fd,opp_sg_fd,opp_sf_fd,opp_pf_fd,opp_c_fd)])
-C4 = cor(player_data[,.(g_fd,p_fd,opp_g_fd,opp_c_fd)])
+C4 = cor(team_data[,.(g_fd,p_fd,opp_g_fd,opp_p_fd)])
+
+corrplot.mixed(C3,lower="number",upper='circle',col=col2(10))
 ##do correlation among starters??
 dcast(player_data[gameID=='20121030-boston-celtics-at-miami-heat' & starter ==1,
                   .(team,fd,position)],team ~ position,fun.aggregate = min, value.var = team)
