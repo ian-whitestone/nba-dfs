@@ -666,9 +666,8 @@ player_data[team_score > 125, score_bucket := 4]
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(player_data[,.(mean_fd = mean(fd)),by = score_bucket],aes(x = score_bucket, y = mean_fd)) + 
-  geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points - Effect of High Scoring Games', x = 'score bucket', y = 'average fanduel points') +
-  geom_smooth(method = "lm", se = FALSE,colour='black')
+  geom_point(colour=palette[5]) + theme_dlin() + scale_x_continuous(breaks=1:4,labels = c("<75",">75",">100",">125")) +
+  labs(title = 'NBA Fanduel Points - Effect of High Scoring Games', x = 'total points scored', y = 'average fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
 ```
 
 
