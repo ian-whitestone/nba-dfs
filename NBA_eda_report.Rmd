@@ -691,7 +691,7 @@ ggplot(player_data,aes(x = opp_turnovers, y = fd)) +
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(player_data[position=='C'],aes(x = opp_rebounds, y = fd)) + 
   geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points - Effect of Opponent Rebounds', x = 'opponent rebounds', y = 'fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
+  labs(title = 'NBA Fanduel Points - Effect of Opponent Rebounds on Centers', x = 'opponent rebounds', y = 'fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
 ```
 
 
@@ -719,13 +719,25 @@ Several conclusions can be drawn from the plot above, all intuitive to someone w
 As an extension of what was shown above, I plot the total fd points scored/allowed by the teams over each season.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
+ggplot(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(season_code,team)],
+       aes(factor(team),mean_opp_fd,colour=factor(season_code),shape=factor(season_code))) + geom_point() + 
+  theme_dlin() + facet_grid(season_code~.) +
+  labs(title = 'FD Points Allowed by Team',x='team',y='average fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(season_code,team)][order(season_code,mean_opp_fd)]
 ```
 
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
+ggplot(team_data[,.(mean_team_fd = mean(team_fd)),by=.(season_code,team)],
+       aes(factor(team),mean_team_fd,colour=factor(season_code),shape=factor(season_code))) + geom_point() + 
+  theme_dlin() + facet_grid(season_code~.) +
+  labs(title = 'FD Points Scored by Team',x='team',y='average fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+team_data[,.(mean_team_fd = mean(team_fd)),by=.(season_code,team)][order(season_code,mean_team_fd)]
 ```
 
 
