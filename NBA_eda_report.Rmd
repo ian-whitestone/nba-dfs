@@ -1,9 +1,11 @@
 ---
 title: "NBA Daily Fantasy Exploration"
 author: "Ian Whitestone"
-date: "December XX, 2016"
+date: "January 15, 2017"
 output: html_document
 ---
+
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -335,12 +337,14 @@ player_data = merge(player_data, team_data[,append(rolling_team_variables,c("gam
 
 
 ## <a name="uni_analysis"></a>Univariate Analysis
+Prior to exploring the different variables, a quick overview of the dataset is provided.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-glimpse(player_data)
+NROW(player_data)
+NROW(event_data)
+player_data[,.N,by = .(season_code, gameID)][,.N, by=season_code]
 ```
-
-A quick glimpse at the player data table reveals that most variables either continuous integers or doubles. Most of the text based variables, such as team or name, are factors. All of the rolling time-window variables appear to be "NA", however, this is due to the ordering of the data. For example, there are not enough games at the beginning to compute a 15 day average.
+Data for a total of 4916 NBA games is provided, spanning the seasons across 2012-2015. Each season contains ~1200 games. 
 
 When exploring the impacts on a player's FD points, the first question that comes to mind is about the distribution of FD points.
 
