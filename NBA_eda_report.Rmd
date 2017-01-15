@@ -434,7 +434,7 @@ r2 = summary(lm(player_data$fd ~ player_data$fd_5))$r.squared
 p = ggplot(player_data,aes(x = fd_5, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
   labs(title = 'NBA Fanduel Points versus Previous Points', x = 'fd points mean of last 5 games', y = 'fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
 
-p + annotate("text", x = 60, y = 75, parse=TRUE, label=paste('R^2: ',substr(as.character(r2),0,4)), family="serif", fontface="italic", colour="black", size=5)
+p + annotate("text", x = 10, y = 75, parse=TRUE, label=paste('R^2: ',substr(as.character(r2),0,4)), family="serif", fontface="italic", colour="black", size=5)
 
 ```
 
@@ -520,41 +520,47 @@ ggplot(player_data,aes(x = pos_depth, y = minutes)) + geom_point(colour=palette[
   geom_smooth(method = "lm", se = FALSE,colour='black')
 ```
 
+There appears to be a significant trend between positional depth and minutes played. As expected, greater positional depth leads to less playing time. There appears to be some outliers at pos_depth>5, as it is highly unlikely that a team would carry more than 5 players at a single position.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 ##INSPECT pos_depth > 5
-View(player_data[pos_depth > 5]) ##-->duplicate player records
-##get all dupes
-View(player_data[,.(count=.N),by=.(gameID,team,player)][count>1,.(gameID,player)])
-nrow(player_data[,.(count=.N),by=.(gameID,team,player)][count>1,.(gameID,player)])
-
-
+glimpse(player_data[pos_depth > 5,.(team,player)][order(player)]) ##-->duplicate player records
 ```
 
-add commentary
+Upon further inspection, these instances appear to be cases where there were duplicate player records in the data.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+##get all dupes
+glimpse(player_data[,.(count=.N),by=.(gameID,team,player)][count>1,.(gameID,player)])
+```
+
+As shown above, a total of 109 duplicates are present. This isn't expected to have a large effect on the data exploration due to the relatively small number of occurences.
+
+Next, the correlation of different rolling minutes played is examined.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 M3=cor(player_data[is.na(minutes_1) == FALSE & is.na(minutes_2) == FALSE & is.na(minutes_3) == FALSE &
                      is.na(minutes_5) == FALSE & is.na(minutes_15) == FALSE & is.na(minutes_25) == FALSE & 
                      is.na(minutes_35) == FALSE & is.na(minutes_55) == FALSE,
                    .(fd,minutes_1,minutes_2,minutes_3,minutes_5,minutes_15,minutes_25,minutes_35,minutes_55)])
-
 corrplot.mixed(M3,lower="number",upper='circle')
-
 ```
 
-add commentary
+The average minutes played in the last 5 & 15 games appears to be the strongest predictor of minutes played on a nightly basis.
 
+Next, we examine if certain positions tend to record more minutes than others.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-
 ##minutes played by position
 ggplot(player_data,aes(factor(position),minutes)) + geom_boxplot() + theme_dlin() +
   labs(title = 'NBA Minutes Played By Position')
 
+player_data[,.(avg_min_played = mean(minutes)),by=position]
 ```
 
+Guards & small forwards play more than centers & power forwards on average.
 
+Similar to the rolling minutes variables, we examine which rolling FD points variable correlates the strongest with FD points on a nightly basis.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -567,21 +573,23 @@ M2=cor(player_data[is.na(fd_1) == FALSE & is.na(fd_2) == FALSE & is.na(fd_3) == 
 corrplot.mixed(M2,lower="number",upper='circle')
 ```
 
-add commentary
+Again, we see that rolling variables over the last 5+ games have the highest correlation with nightly performance.
 
+Next, we see which players tend to record the most FD points.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
+##points scored by position
+ggplot(player_data,aes(reorder(factor(position),-fd,median),fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points By Position',x='position',y='fd')
 
-##points scored by position (revisited)
-ggplot(player_data,aes(factor(position),fd)) + geom_boxplot() + theme_dlin() +
-  labs(title = 'NBA Fanduel Points By Position')
-
+player_data[,.(mean_fd=mean(fd)),by=position][order(mean_fd)]
 ```
 
+Point guards and centers tend to record the most FD points on a nightly basis. For the Fanduel site, lineups must have a fixed number of players at each position. However, other DFS sites allow for flex positions, so targeting point guards & centers in those spots could be an advantageous strategy.
 
+The total fanduel points scored by each team last season is shown below.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-
 ##points scored by team
 ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(reorder(factor(team),-team_fd,median),team_fd)) + geom_boxplot() + theme_dlin() +
   labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',y='team total fanduel points') + 
@@ -589,7 +597,9 @@ ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(reord
 
 ```
 
+Golden State & Oklahoma City scored the highest number of fantasy points in each game. Targeting players on these teams is a possible strategy.
 
+The total fanduel points allowed by each team last season is shown below.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##points allowed by team
@@ -599,10 +609,15 @@ ggplot(team_data[season_code==20122013,.N,by=.(gameID,team,opp_fd)],aes(reorder(
 
 ```
 
-##STACKING
+Sacremento & Charlotte had the most porous defenses from a fantasy standpoint. As a result, players competing against these teams could be targeted. 
+
+### Stacking
+
+"Stacking" is a popular concept in daily fantasy sports that involves putting players from the same team on your lineup. To explore whether stacking is a viable strategy in the NBA, it is necessary to examine the correlations between players and their teams.
+
+First, we examine how fantasy points correlate at each position.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-##player point correlations
 col1 <- colorRampPalette(c("#7F0000","red","#FF7F00","yellow","white", 
         "cyan", "#007FFF", "blue","#00007F"))
 col2 <- colorRampPalette(c("#67001F", "#B2182B", "#D6604D", "#F4A582", "#FDDBC7",
@@ -611,49 +626,36 @@ col3 <- colorRampPalette(c("red", "white", "blue"))
 col4 <- colorRampPalette(c("#7F0000","red","#FF7F00","yellow","#7FFF7F", 
             "cyan", "#007FFF", "blue","#00007F"))   
 
-C1 = cor(player_data[,.(fd,team_fd,opp_fd)])
-corrplot.mixed(C1,lower="number",upper='pie',col=col2(10))
-```
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+#C1 = cor(player_data[,.(fd,team_fd,opp_fd)])
+#corrplot.mixed(C1,lower="number",upper='circle',col=col2(4))
 C2 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,team_fd,opp_fd)])
-corrplot.mixed(C2,lower="number",upper='circle',col=col2(10))
+corrplot.mixed(C2,lower="number",upper='circle',col=col2(4))
 ```
 
+The cell with -0.38 represents the correlation between the total point guard fantasy points and total shooting guard fantasy points. In general, players on the same team are negatively correlated with each other. Intuitively this makes sense, as the stolen shot attempts from one player outweigh the fantasy points generated by assists. The negative correlation is less significant between perimiter & post players (i.e. PG/C or SG/C).
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,opp_pg_fd,opp_sg_fd,opp_sf_fd,opp_pf_fd,opp_c_fd)])
-corrplot.mixed(C3,lower="number",upper='circle',col=col2(10))
+corrplot.mixed(C3,lower="number",upper='circle',col=col2(4))
 ```
 
+The correlation between opposing players at each position is less significant.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-C4 = cor(team_data[,.(g_fd,p_fd,opp_g_fd,opp_c_fd)])
-corrplot.mixed(C4,lower="number",upper='circle',col=col2(10))
-```
+Next, correlation among the starting players is examined (as opposed to bench + startings player from above)
 
-
---add opposing starters in this?
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results = 'hide'}
-starter_data = dcast(player_data[starter == 1,],gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'))
+starter_data = dcast(player_data[starter == 1,],gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'),na.rm=T)
 starter_data = as.data.table(starter_data)
 ```
 
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-C5 = cor(starter_data[is.na(PG) == FALSE & is.na(SG) == FALSE & is.na(SF) == FALSE & is.na(PF) == FALSE & is.na(C) == FALSE,.(PG,SG,SF,PF,C)])
+C5 = cor(starter_data[,.(PG,SG,SF,PF,C)],use = 'complete.obs')
 corrplot.mixed(C5,lower="number",upper='circle',col=col2(4))
 ```
 
-player_data[starter == 1,] %>% dcast(date + team ~ position, value.var = c('fd')) %>% select(C, PF, PG, SF, SG) %>% cor %>% round(2)
-
-starter_data = dcast(player_data[starter == 1,],gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'))
-starter_data = as.data.table(starter_data)
-cor(starter_data[is.na(PG) == FALSE & is.na(SG) == FALSE & is.na(SF) == FALSE & is.na(PF) == FALSE & is.na(C) == FALSE,.(PG,SG,SF,PF,C)]) %>% round(2)
+Again, the same trend is shown with perimiters players being negatively correlation with each other, as well as posts.
 
 Next, I examine the impact of high scoring games. First, the team scores (i.e. actual total points scored) are joined to the player data table. 
-
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results = 'hide'}
 player_data = player_data %>% inner_join(event_data[,.(gameID,home_score,away_score)])
@@ -666,7 +668,7 @@ player_data[team_score > 100, score_bucket := 3]
 player_data[team_score > 125, score_bucket := 4]
 ```
 
-
+And the results shown below.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(player_data[,.(mean_fd = mean(fd)),by = score_bucket],aes(x = score_bucket, y = mean_fd)) + 
@@ -674,6 +676,9 @@ ggplot(player_data[,.(mean_fd = mean(fd)),by = score_bucket],aes(x = score_bucke
   labs(title = 'NBA Fanduel Points - Effect of High Scoring Games', x = 'total points scored', y = 'average fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
 ```
 
+As expected, high scoring games correlate directly with higher fantasy point production. Oddsmaker publish projection point totals for each NBA game, so players playing in high projected point games should be targeted.
+
+Lastly, I examine the effect of weak rebounding teams and teams with lots of turnovers.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ###opponent rebounds and turnovers
@@ -691,17 +696,19 @@ ggplot(player_data,aes(x = opp_turnovers, y = fd)) +
   geom_smooth(method = "lm", se = FALSE,colour='black')
 ```
 
+When opposing teams turn the ball over more frequently is does not necessarily lead to higher fantasy production.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(player_data[position=='C'],aes(x = opp_rebounds, y = fd)) + 
+ggplot(player_data[position %in% c('C','PF')],aes(x = opp_rebounds, y = fd)) + 
   geom_point(colour=palette[5]) + theme_dlin() +
   labs(title = 'NBA Fanduel Points - Effect of Opponent Rebounds on Centers', x = 'opponent rebounds', y = 'fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
 ```
 
+Centers and power forwards are expected to benefit from weak rebounding teams due to more fantasy points from rebounds and second-chance baskets. The plot above shows a slightly negative trend (i.e. more rebounds by opponents = lower fantsay point production for PFs/Cs).
 
 ## <a name="multi_analysis"></a>Multivariate Analysis
 
-The formula for FD points was shown earlier. The plots below show how the distributions of relevent statistics varies between positions.
+The formula for FD points was shown earlier. The plots below show how the distributions of relevant statistics vary between positions.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 base_stats = player_data[,.(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = sum(FTM)/.N,
@@ -724,51 +731,77 @@ As an extension of what was shown above, I plot the total fd points scored/allow
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(season_code,team)],
-       aes(factor(team),mean_opp_fd,colour=factor(season_code),shape=factor(season_code))) + geom_point() + 
+       aes(factor(team),mean_opp_fd,colour=factor(season_code))) + geom_point() + 
   theme_dlin() + facet_grid(season_code~.) +
   labs(title = 'FD Points Allowed by Team',x='team',y='average fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season")
 
-team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(season_code,team)][order(season_code,mean_opp_fd)]
+head(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(team)][order(mean_opp_fd)],5)
+tail(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(team)][order(mean_opp_fd)],5)
 ```
 
+The plot above helps identify teams that are consistently weak defensively. Over the past 4 seasons, the Lakers has been one of the weakest defensive teams (from a fantasy points perspective) whereas Memphis has been the strongest.
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(team_data[,.(mean_team_fd = mean(team_fd)),by=.(season_code,team)],
-       aes(factor(team),mean_team_fd,colour=factor(season_code),shape=factor(season_code))) + geom_point() + 
+       aes(factor(team),mean_team_fd,colour=factor(season_code))) + geom_point() + 
   theme_dlin() + facet_grid(season_code~.) +
   labs(title = 'FD Points Scored by Team',x='team',y='average fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season")
 
-team_data[,.(mean_team_fd = mean(team_fd)),by=.(season_code,team)][order(season_code,mean_team_fd)]
+head(team_data[,.(mean_team_fd = mean(team_fd)),by=.(team)][order(-mean_team_fd)],5)
+tail(team_data[,.(mean_team_fd = mean(team_fd)),by=.(team)][order(-mean_team_fd)],5)
 ```
 
+Golden State and Oklahoma City have been the top fantasy point scoring teams whereas New York & Brooklyn have been the worst across each season.
 
+Next, we see which teams give up the most points to each position. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##points allowed by team to each position, do one coloured dot for each position
-pa_pos = team_data[season_code==20122013,.(opp_pg_fd = mean(opp_pg_fd), opp_sg_fd = mean(opp_sg_fd),
+pa_pos = team_data[,.(opp_pg_fd = mean(opp_pg_fd), opp_sg_fd = mean(opp_sg_fd),
                                   opp_sf_fd = mean(opp_sf_fd),opp_pf_fd = mean(opp_pf_fd),opp_c_fd = mean(opp_c_fd)),
           by = .(season_code,team)]
 
 pa_pos = melt(pa_pos,id.vars = c('season_code','team'))
 
-ggplot(pa_pos[season_code==20122013,],aes(factor(team),value,colour=factor(variable),shape=factor(variable))) + geom_point() + theme_dlin() +
-  labs(title = 'NBA Fanduel Points Allowed by Team for the 2015-2016 Season',x='team',y='team mean total allowed fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+ggplot(pa_pos[season_code==20152016,],aes(factor(team),value,colour=factor(variable))) + geom_point() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points Allowed by Team to Each Position for the 2015-2016 Season',x='team',y='team mean total allowed fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Position",labels=c("opp_pg_fd" = "PG", "opp_sg_fd" = "SG","opp_sf_fd" = "SF","opp_pf_fd"="PF","opp_c_fd"="C"))
 ```
 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tail(pa_pos[season_code==20152016 & variable == 'opp_pg_fd',][order(value)],2)
+tail(pa_pos[season_code==20152016 & variable == 'opp_c_fd',][order(value)],2)
+```
+
+The Lakers gave up the most points to opposing point guards and centers, followed closely by Phoenix (point guards) and Philadelphia (centers).
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+head(pa_pos[season_code==20152016 & variable == 'opp_pg_fd',][order(value)],2)
+head(pa_pos[season_code==20152016 & variable == 'opp_c_fd',][order(value)],2)
+```
+
+Atlanta & Boston gave up the least amount of points to opposing point guards whereas Golden State and Cleveland were the best at containing opposing centers.
+
+The same analysis can be applied at the individual player level. Lebron's performance against teams each season is show.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##lebrons points against certain teams
 lebron = player_data[player == 'LeBron James',.(mean_fd = mean(fd), count = .N), by = .(opponent,season_code)]
 
-ggplot(lebron,aes(reorder(factor(opponent),-mean_fd),mean_fd,colour=factor(season_code),shape=factor(season_code))) + geom_point() + 
+ggplot(lebron,aes(reorder(factor(opponent),-mean_fd),mean_fd,colour=factor(season_code))) + geom_point() + 
   theme_dlin() + facet_grid(season_code~.) +
   labs(title = 'LeBron James Average Fanduel Points Against Each Team',x='team',y='average fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season")
+
+head(lebron[!(opponent %in% c('MIA','CLE')),.(mean_fd=mean(mean_fd)),by=opponent][order(mean_fd)],5)
+tail(lebron[!(opponent %in% c('MIA','CLE')),.(mean_fd=mean(mean_fd)),by=opponent][order(mean_fd)],5)
 ```
+
+Lebron scored the most against Charlotte and OKC across his past 4 seasons, and was held to his lowest average fantasy points against Portland and Brooklyn.
 
 
 ## <a name="final"></a>Final Plots and Summary
@@ -777,13 +810,21 @@ ggplot(lebron,aes(reorder(factor(opponent),-mean_fd),mean_fd,colour=factor(seaso
 ##enter code here
 ```
 
+1) points allowed to each position over each season.
+- reflects that point guards and centers score the most
+
+2) corrplot with various variables for a model
+3) corrplot between positions
 
 ## <a name="reflection"></a>Reflection
+The section reflects on how the analysis was conducted and reports on the struggles and successes throughout the analysis. The section provides at least one idea or question for future work. The section explains any important decisions in the analysis and how those decisions affected the analysis.
 
+Where did I run into difficulties in the analysis?
+Where did I find successes?
+
+How could the analysis be enriched in future work (e.g. additional data and analyses)?
 - add other data sources
 --> vegas odds, total projected points --> target players in high scoring games
 --> low point spreads, more likely to go to overtime
 
-echo=False emits the code
-eval=False prevents the code from running!
-results = 'hide' suppresses the output of the code
+
