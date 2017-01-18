@@ -36,7 +36,7 @@ This study focuses on the NBA DFS, with a particular emphasis on examining facto
 * Steal = 2pts
 * Turnover = -1pt
 
-Source: <https://www.fanduel.com/rules>
+[Source](https://www.fanduel.com/rules)
 
 ## <a name="data_import"></a>Data Import & Cleaning
 
