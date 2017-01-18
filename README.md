@@ -1,7 +1,7 @@
 NBA Daily Fantasy Exploration
 ================
 Ian Whitestone
-January 15, 2017
+January 17, 2017
 
 Table of Contents
 -----------------
@@ -18,9 +18,9 @@ Table of Contents
 <a name="introduction"></a>Introduction
 ---------------------------------------
 
-Daily fantasy sports (DFS) are a subset of fantasy sports, where participants construct lineups based on the games occuring on a given day \[<https://en.wikipedia.org/wiki/Daily_fantasy_sports>\]. Lineups are subject to various constraints, such as a salary cap and having a minimum number of players at each position. As with other fantasy sports, player's fantasy points are based on their actual performance in real life. As a result, a key component of being a successful DFS player is the ability to project a player's total points for a given night.
+[Daily fantasy sports](https://en.wikipedia.org/wiki/Daily_fantasy_sports) (DFS) are a subset of fantasy sports, where participants construct lineups based on the games occuring on a given day. Lineups are subject to various constraints, such as a salary cap and having a minimum number of players at each position. As with other fantasy sports, player's fantasy points are based on their actual performance in real life. As a result, a key component of being a successful DFS player is the ability to project a player's total points for a given night.
 
-This study focuses on the NBA DFS, with a particular emphasis on examining factors that influence a player's score. The NBA data used in the study is sourced from Erik Berg's API \[<https://erikberg.com/api>\]. The study covers NBA data from the 2012-2013 season, up until the 2015-2016 season. Fantasy points are calculated using Fanduel's scoring system, described below. Unlike other sports, all positions in the NBA are scored using the same system.
+This study focuses on the NBA DFS, with a particular emphasis on examining factors that influence a player's score. The NBA data used in the study is sourced from Erik Berg's [API](https://erikberg.com/api). The study covers NBA data from the 2012-2013 season, up until the 2015-2016 season. Fantasy points are calculated using Fanduel's scoring system, described below. Unlike other sports, all positions in the NBA are scored using the same system.
 
 -   3-pt FG = 3pts
 -   2-pt FG = 2pts
@@ -31,12 +31,14 @@ This study focuses on the NBA DFS, with a particular emphasis on examining facto
 -   Steal = 2pts
 -   Turnover = -1pt
 
-Source: <https://www.fanduel.com/rules>
+[Source](https://www.fanduel.com/rules)
 
 <a name="data_import"></a>Data Import & Cleaning
 ------------------------------------------------
 
-Two csv files were created using the NBA data API. The player\_data file contains a record for each player that recorded any statistics during a game. The event data table contains a record for each game, identified by a unique gameID. This gameID can be used to join the two data sources.
+Two csv files were created using Erik Berg's API. The data used in this projected was extracted using several Python modules I created. The Python modules make the necessary API requests to retrieve NBA events for each day and then the corresponding boxscore data for each event. The data is parsed, cleaned and formatted for injection into a lcoally hosted Postgres database. The Python modules and corresponding database schema can be viewed on my github page under the [XML Data Repo](https://github.com/ian-whitestone/xml-data)
+
+The player\_data file contains a record for each player that recorded any statistics during a game. The event data table contains a record for each game, identified by a unique gameID. This gameID can be used to join the two data sources.
 
 Before performing producing any plots or analysis, the data is imported and cleaned.
 
@@ -195,32 +197,19 @@ In order to calculate team based statistics, the event\_data table must be manip
 colnames(event_data)
 ```
 
-    ##  [1] "attendance"     "away_3FGA"     
-    ##  [3] "away_3FGM"      "away_FGA"      
-    ##  [5] "away_FGM"       "away_FTA"      
-    ##  [7] "away_FTM"       "away_Q1"       
-    ##  [9] "away_Q2"        "away_Q3"       
-    ## [11] "away_Q4"        "away_Q5"       
-    ## [13] "away_Q6"        "away_Q7"       
-    ## [15] "away_Q8"        "away_assists"  
-    ## [17] "away_blocks"    "away_fouls"    
-    ## [19] "away_points"    "away_rebounds" 
-    ## [21] "away_steals"    "away_team"     
-    ## [23] "away_turnovers" "duration"      
-    ## [25] "gameID"         "home_3FGA"     
-    ## [27] "home_3FGM"      "home_FGA"      
-    ## [29] "home_FGM"       "home_FTA"      
-    ## [31] "home_FTM"       "home_Q1"       
-    ## [33] "home_Q2"        "home_Q3"       
-    ## [35] "home_Q4"        "home_Q5"       
-    ## [37] "home_Q6"        "home_Q7"       
-    ## [39] "home_Q8"        "home_assists"  
-    ## [41] "home_blocks"    "home_fouls"    
-    ## [43] "home_points"    "home_rebounds" 
-    ## [45] "home_steals"    "home_team"     
-    ## [47] "home_turnovers" "official_1"    
-    ## [49] "official_2"     "official_3"    
-    ## [51] "official_4"     "season_type"   
+    ##  [1] "attendance"     "away_3FGA"      "away_3FGM"      "away_FGA"      
+    ##  [5] "away_FGM"       "away_FTA"       "away_FTM"       "away_Q1"       
+    ##  [9] "away_Q2"        "away_Q3"        "away_Q4"        "away_Q5"       
+    ## [13] "away_Q6"        "away_Q7"        "away_Q8"        "away_assists"  
+    ## [17] "away_blocks"    "away_fouls"     "away_points"    "away_rebounds" 
+    ## [21] "away_steals"    "away_team"      "away_turnovers" "duration"      
+    ## [25] "gameID"         "home_3FGA"      "home_3FGM"      "home_FGA"      
+    ## [29] "home_FGM"       "home_FTA"       "home_FTM"       "home_Q1"       
+    ## [33] "home_Q2"        "home_Q3"        "home_Q4"        "home_Q5"       
+    ## [37] "home_Q6"        "home_Q7"        "home_Q8"        "home_assists"  
+    ## [41] "home_blocks"    "home_fouls"     "home_points"    "home_rebounds" 
+    ## [45] "home_steals"    "home_team"      "home_turnovers" "official_1"    
+    ## [49] "official_2"     "official_3"     "official_4"     "season_type"   
     ## [53] "date"           "season_code"
 
 As shown in the column names of event\_data, team variables are preceded by 'home\_' or 'away\_'. After splitting the table into one record per team per game, these variable names must be standardized by removing the "home/away" pre-name.
@@ -406,7 +395,7 @@ NROW(event_data)
     ## [1] 4916
 
 ``` r
-player_data[,.N,by = .(season_code, gameID)][,.N, by=season_code]
+player_data[, .N, by = .(season_code, gameID)][,.N, by=season_code]
 ```
 
     ## Source: local data table [4 x 2]
@@ -503,10 +492,10 @@ glimpse(player_data[eff>3,.(gameID,player,minutes,fd,`3FGM`,FGM,FTM,rebounds,ass
 
     ## Observations: 10
     ## Variables: 12
-    ## $ gameID    <fctr> 20121104-phoenix-suns-at-o...
-    ## $ player    <fctr> Kyle O'Quinn, Chris Copela...
+    ## $ gameID    <fctr> 20121104-phoenix-suns-at-orlando-magic, 20121116-ne...
+    ## $ player    <fctr> Kyle O'Quinn, Chris Copeland, Jarvis Varnado, Quinc...
     ## $ minutes   <int> 1, 1, 1, 3, 2, 1, 2, 1, 2, 2
-    ## $ fd        <dbl> 3.2, 3.7, 5.2, 9.2, 7.2, 3....
+    ## $ fd        <dbl> 3.2, 3.7, 5.2, 9.2, 7.2, 3.5, 6.5, 3.2, 6.5, 7.6
     ## $ 3FGM      <int> 0, 0, 0, 0, 0, 0, 1, 0, 1, 0
     ## $ FGM       <int> 0, 0, 2, 1, 2, 0, 1, 1, 1, 2
     ## $ FTM       <int> 2, 1, 0, 4, 0, 0, 0, 0, 0, 0
@@ -562,20 +551,20 @@ glimpse(player_data[pos_depth > 5,.(team,player)][order(player)]) ##-->duplicate
 
     ## Observations: 16
     ## Variables: 2
-    ## $ team   <fctr> LAL, LAL, GS, GS, GS, GS, LAL...
-    ## $ player <fctr> Brandon Bass, Brandon Bass, B...
+    ## $ team   <fctr> LAL, LAL, GS, GS, GS, GS, LAL, LAL, GS, GS, LAL, LAL, ...
+    ## $ player <fctr> Brandon Bass, Brandon Bass, Brandon Rush, Brandon Rush...
 
 Upon further inspection, these instances appear to be cases where there were duplicate player records in the data.
 
 ``` r
 ##get all dupes
-glimpse(player_data[,.(count=.N),by=.(gameID,team,player)][count>1,.(gameID,player)])
+glimpse(player_data[, .(count = .N), by = .(gameID,team,player)][count>1, .(gameID,player)])
 ```
 
     ## Observations: 109
     ## Variables: 2
-    ## $ gameID <fctr> 20151206-dallas-mavericks-at-...
-    ## $ player <fctr> Zaza Pachulia, Ryan Hollins, ...
+    ## $ gameID <fctr> 20151206-dallas-mavericks-at-washington-wizards, 20151...
+    ## $ player <fctr> Zaza Pachulia, Ryan Hollins, DeJuan Blair, Dirk Nowitz...
 
 As shown above, a total of 109 duplicates are present. This isn't expected to have a large effect on the data exploration due to the relatively small number of occurences.
 
@@ -639,7 +628,7 @@ Sacremento & Charlotte had the most porous defenses from a fantasy standpoint. A
 
 ### Stacking
 
-"Stacking" is a popular concept in daily fantasy sports that involves putting players from the same team on your lineup. To explore whether stacking is a viable strategy in the NBA, it is necessary to examine the correlations between players and their teams.
+"Stacking" is a popular concept in daily fantasy sports that involves putting players from the same team on your lineup. The idea is that if one player is performing well, his teammates could also benefit through assists or additional opportunities (via rebounds, steals etc.). To explore whether stacking is a viable strategy in the NBA, it is necessary to examine the correlations between players and their teams.
 
 First, we examine how fantasy points correlate at each position.
 
@@ -654,7 +643,7 @@ The correlation between opposing players at each position is less significant.
 Next, correlation among the starting players is examined (as opposed to bench + startings player from above)
 
 ``` r
-starter_data = dcast(player_data[starter == 1,],gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'),na.rm=T)
+starter_data = dcast(player_data[starter == 1,], gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'), na.rm=T)
 starter_data = as.data.table(starter_data)
 ```
 
@@ -666,7 +655,7 @@ Next, I examine the impact of high scoring games. First, the team scores (i.e. a
 
 ``` r
 player_data = player_data %>% inner_join(event_data[,.(gameID,home_score,away_score)])
-player_data[,team_score := home_score]
+player_data[, team_score := home_score]
 player_data[team == away_team, team_score := away_score]
 
 player_data[, score_bucket := 1]
@@ -685,8 +674,8 @@ Lastly, I examine the effect of weak rebounding teams and teams with lots of tur
 
 ``` r
 ###opponent rebounds and turnovers
-opp_stats = team_data[,.(gameID,team,rebounds,turnovers)]
-setnames(opp_stats,old=c('team','rebounds','turnovers'),new=c('opponent','opp_rebounds','opp_turnovers'))
+opp_stats = team_data[, .(gameID,team,rebounds,turnovers)]
+setnames(opp_stats, old=c('team','rebounds','turnovers'), new=c('opponent','opp_rebounds','opp_turnovers'))
 
 player_data = player_data %>% inner_join(opp_stats)
 ```
@@ -705,7 +694,7 @@ Centers and power forwards are expected to benefit from weak rebounding teams du
 The formula for FD points was shown earlier. The plots below show how the distributions of relevant statistics vary between positions.
 
 ``` r
-base_stats = player_data[,.(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = sum(FTM)/.N,
+base_stats = player_data[, .(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = sum(FTM)/.N,
                           rebounds = sum(rebounds)/.N, assists = sum(assists)/.N,
                           blocks = sum(blocks)/.N, steals = sum(steals)/.N,
                           turnovers = sum(turnovers)/.N, fouls = sum(fouls)/.N),
@@ -713,8 +702,8 @@ base_stats = player_data[,.(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = s
 
 d = melt(base_stats, id.vars = c("gameID", "position"))
 
-ggplot(d,aes(x = value, y = ..count.., colour = position)) + facet_wrap(~variable,scales = "free_x") +
-  geom_density() + theme_dlin() + scale_y_continuous(limits = c(0, 10000))
+ggplot(d, aes(x = value, y = ..count.., colour = position)) + facet_wrap(~variable,scales = "free_x") +
+  geom_density() + theme_dlin() + scale_y_continuous(limits = c(0, 10000)) + theme(legend.position="bottom")
 ```
 
 ![](NBA_eda_report_files/figure-markdown_github/unnamed-chunk-41-1.png)
@@ -830,18 +819,31 @@ Lebron scored the most against Charlotte and OKC across his past 4 seasons, and 
 <a name="final"></a>Final Plots and Summary
 -------------------------------------------
 
-1.  points allowed to each position over each season.
+The first final plot chosen was created using one of the engineered feature variables. The variable created was the amount of fantasy points allowed by each team to each opposing position for every game. The plot below shows the average fantasy points allowed to each position over all seasons present in the data set.
 
--   reflects that point guards and centers score the most
+![](NBA_eda_report_files/figure-markdown_github/unnamed-chunk-48-1.png)
 
-1.  corrplot with various variables for a model
-2.  corrplot between positions
+Multiple insights can be drawn from this plot. All teams allow the most fantasy points to opposing point guards, which was also reflected in a previous plot that showed average fantasy points at each position. The plot also allows for identification of both friendly and un-friendly teams to target in each matchup. For example, Memphis & San Antonio have been two of the strongest defensive teams, allowing the fewest fantasy points to all positions each season. On the other hand, the LA Lakers have been one of the most porous teams.
+
+Based on this, a potential feature variable in a predictive model could be a rolling average of fantasy points allowed to each position.
+
+The second plot chosen was a combination of the correlation plots shown earlier.
+
+![](NBA_eda_report_files/figure-markdown_github/unnamed-chunk-49-1.png)
+
+The plot above does a good job of summarizing the variables that have strong positive or negative relationships with fantasy points.
+
+The third plot chosen was another correlation matrix, this time between various positions. The plot is particularly important for coming up with a stacking strategy.
+
+![](NBA_eda_report_files/figure-markdown_github/unnamed-chunk-50-1.png)
+
+In general, players on the same team are negatively correlated with each other. The negative correlation is less significant between perimiter & post players (i.e. PG/C or SG/C). The correlation between opposing players at each position is less significant. As a result, choosing players on opposite teams should not have a negative impact on fantasy production, unlike other matchup based fantasy spots where opposing players are more negatively correlated (i.e. hockey goalies & opposing skaters, baseball pitchers and opposing batters).
+
+Overall, many of the feature variables explored show strong linear correlations with fantasy points, laying the groundwork for a powerful, predictive model to be built.
 
 <a name="reflection"></a>Reflection
 -----------------------------------
 
-The section reflects on how the analysis was conducted and reports on the struggles and successes throughout the analysis. The section provides at least one idea or question for future work. The section explains any important decisions in the analysis and how those decisions affected the analysis.
+Overall, using R for the exploratory data analysis was a good experience as the language and development environment in R studio make work quick and easy. Once I learned the syntax of data.table and ggplot, and the useful library reshape, data cleaning, massaging and aggregating became extremely quick and efficient. Being able to quickly group, select and aggregate to produce stats along with plots made the analysis more thorough and informative. Most difficulties encountered were related to formatting with ggplot2 (i.e. changing label title, creating facet grids, custom x-axis labels etc.). Despite these minor difficulties, I find plotting with R & RStudio a much better experience than Python.
 
-Where did I run into difficulties in the analysis? Where did I find successes?
-
-How could the analysis be enriched in future work (e.g. additional data and analyses)? - add other data sources --&gt; vegas odds, total projected points --&gt; target players in high scoring games --&gt; low point spreads, more likely to go to overtime
+For future work, it is recommended to add in other data sources to explore additional variables that may impact fantasy points. For example, vegas odds variables such as win probability or total projected points could be useful. The analysis showed that games that go to overtime or are high scoring yield higher average fantasy point totals, so games with narrow win margins or high projected point totals could be targeted.
