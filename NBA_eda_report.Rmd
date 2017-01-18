@@ -2,11 +2,14 @@
 title: "NBA Daily Fantasy Exploration"
 author: "Ian Whitestone"
 date: "January 17, 2017"
-output: github_document
+output: 
+    github_document:
+      fig_width: 9
+      
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(out.width='750px', dpi=200)
+
 ```
 
 ##Table of Contents
@@ -342,7 +345,7 @@ Prior to exploring the different variables, a quick overview of the dataset is p
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 NROW(player_data)
 NROW(event_data)
-player_data[,.N,by = .(season_code, gameID)][,.N, by=season_code]
+player_data[, .N, by = .(season_code, gameID)][,.N, by=season_code]
 ```
 Data for a total of 4916 NBA games is provided, spanning the seasons across 2012-2015. Each season contains ~1200 games. 
 
@@ -495,8 +498,10 @@ When building a predictive model, neither minutes played or efffiency will be av
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##corrplot - general
+col2 <- colorRampPalette(c("#67001F", "#B2182B", "#D6604D", "#F4A582", "#FDDBC7",
+            "#FFFFFF", "#D1E5F0", "#92C5DE", "#4393C3", "#2166AC", "#053061")) 
 M=cor(player_data[,.(fd,minutes,starter,homeaway,fouls,FGA)])
-corrplot.mixed(M,lower="number",upper='pie')
+corrplot.mixed(M,lower="number",upper='pie',col=col2(4))
 ```
 
 The homeaway variable has the weakest corrleation with FD points. As shown below, the mean fd score is only 0.6 points higher for players at home.
@@ -535,7 +540,7 @@ Upon further inspection, these instances appear to be cases where there were dup
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 ##get all dupes
-glimpse(player_data[,.(count=.N),by=.(gameID,team,player)][count>1,.(gameID,player)])
+glimpse(player_data[, .(count = .N), by = .(gameID,team,player)][count>1, .(gameID,player)])
 ```
 
 As shown above, a total of 109 duplicates are present. This isn't expected to have a large effect on the data exploration due to the relatively small number of occurences.
@@ -617,7 +622,7 @@ Sacremento & Charlotte had the most porous defenses from a fantasy standpoint. A
 
 ### Stacking
 
-"Stacking" is a popular concept in daily fantasy sports that involves putting players from the same team on your lineup. To explore whether stacking is a viable strategy in the NBA, it is necessary to examine the correlations between players and their teams.
+"Stacking" is a popular concept in daily fantasy sports that involves putting players from the same team on your lineup. The idea is that if one player is performing well, his teammates could also benefit through assists or additional opportunities (via rebounds, steals etc.). To explore whether stacking is a viable strategy in the NBA, it is necessary to examine the correlations between players and their teams.
 
 First, we examine how fantasy points correlate at each position.
 
@@ -648,7 +653,7 @@ The correlation between opposing players at each position is less significant.
 Next, correlation among the starting players is examined (as opposed to bench + startings player from above)
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results = 'hide'}
-starter_data = dcast(player_data[starter == 1,],gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'),na.rm=T)
+starter_data = dcast(player_data[starter == 1,], gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'), na.rm=T)
 starter_data = as.data.table(starter_data)
 ```
 
@@ -663,7 +668,7 @@ Next, I examine the impact of high scoring games. First, the team scores (i.e. a
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results = 'hide'}
 player_data = player_data %>% inner_join(event_data[,.(gameID,home_score,away_score)])
-player_data[,team_score := home_score]
+player_data[, team_score := home_score]
 player_data[team == away_team, team_score := away_score]
 
 player_data[, score_bucket := 1]
@@ -686,8 +691,8 @@ Lastly, I examine the effect of weak rebounding teams and teams with lots of tur
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ###opponent rebounds and turnovers
-opp_stats = team_data[,.(gameID,team,rebounds,turnovers)]
-setnames(opp_stats,old=c('team','rebounds','turnovers'),new=c('opponent','opp_rebounds','opp_turnovers'))
+opp_stats = team_data[, .(gameID,team,rebounds,turnovers)]
+setnames(opp_stats, old=c('team','rebounds','turnovers'), new=c('opponent','opp_rebounds','opp_turnovers'))
 
 player_data = player_data %>% inner_join(opp_stats)
 ```
@@ -715,7 +720,7 @@ Centers and power forwards are expected to benefit from weak rebounding teams du
 The formula for FD points was shown earlier. The plots below show how the distributions of relevant statistics vary between positions.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-base_stats = player_data[,.(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = sum(FTM)/.N,
+base_stats = player_data[, .(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = sum(FTM)/.N,
                           rebounds = sum(rebounds)/.N, assists = sum(assists)/.N,
                           blocks = sum(blocks)/.N, steals = sum(steals)/.N,
                           turnovers = sum(turnovers)/.N, fouls = sum(fouls)/.N),
@@ -723,7 +728,7 @@ base_stats = player_data[,.(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = s
 
 d = melt(base_stats, id.vars = c("gameID", "position"))
 
-ggplot(d,aes(x = value, y = ..count.., colour = position)) + facet_wrap(~variable,scales = "free_x") +
+ggplot(d, aes(x = value, y = ..count.., colour = position)) + facet_wrap(~variable,scales = "free_x") +
   geom_density() + theme_dlin() + scale_y_continuous(limits = c(0, 10000)) + theme(legend.position="bottom")
 
 ```
@@ -746,13 +751,12 @@ tail(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(team)][order(mean_opp_fd)],5)
 
 The plot above helps identify teams that are consistently weak defensively. Over the past 4 seasons, the Lakers has been one of the weakest defensive teams (from a fantasy points perspective) whereas Memphis has been the strongest.
 
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(team_data[,.(mean_team_fd = mean(team_fd)),by=.(season_code,team)],
        aes(factor(team),mean_team_fd,colour=factor(season_code))) + geom_point() + 
   theme_dlin() + facet_grid(season_code~.) +
   labs(title = 'FD Points Scored by Team',x='team',y='average fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season")
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season") + theme(legend.position="bottom")
 
 head(team_data[,.(mean_team_fd = mean(team_fd)),by=.(team)][order(-mean_team_fd)],5)
 tail(team_data[,.(mean_team_fd = mean(team_fd)),by=.(team)][order(-mean_team_fd)],5)
