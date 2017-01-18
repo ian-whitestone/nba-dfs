@@ -2,13 +2,11 @@
 title: "NBA Daily Fantasy Exploration"
 author: "Ian Whitestone"
 date: "January 15, 2017"
-output: html_document
+output: github_document
 ---
 
-
-
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(out.width='750px', dpi=200)
 ```
 
 ##Table of Contents
@@ -25,9 +23,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## <a name="introduction"></a>Introduction
 
-Daily fantasy sports (DFS) are a subset of fantasy sports, where participants construct lineups based on the games occuring on a given day [<https://en.wikipedia.org/wiki/Daily_fantasy_sports>]. Lineups are subject to various constraints, such as a salary cap and having a minimum number of players at each position. As with other fantasy sports, player's fantasy points are based on their actual performance in real life. As a result, a key component of being a successful DFS player is the ability to project a player's total points for a given night. 
+[Daily fantasy sports](https://en.wikipedia.org/wiki/Daily_fantasy_sports) (DFS) are a subset of fantasy sports, where participants construct lineups based on the games occuring on a given day. Lineups are subject to various constraints, such as a salary cap and having a minimum number of players at each position. As with other fantasy sports, player's fantasy points are based on their actual performance in real life. As a result, a key component of being a successful DFS player is the ability to project a player's total points for a given night. 
 
-This study focuses on the NBA DFS, with a particular emphasis on examining factors that influence a player's score. The NBA data used in the study is sourced from Erik Berg's API  [<https://erikberg.com/api>]. The study covers NBA data from the 2012-2013 season, up until the 2015-2016 season. Fantasy points are calculated using Fanduel's scoring system, described below. Unlike other sports, all positions in the NBA are scored using the same system.
+This study focuses on the NBA DFS, with a particular emphasis on examining factors that influence a player's score. The NBA data used in the study is sourced from Erik Berg's [API](https://erikberg.com/api). The study covers NBA data from the 2012-2013 season, up until the 2015-2016 season. Fantasy points are calculated using Fanduel's scoring system, described below. Unlike other sports, all positions in the NBA are scored using the same system.
 
 * 3-pt FG = 3pts
 * 2-pt FG = 2pts
@@ -724,7 +722,7 @@ base_stats = player_data[,.(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = s
 d = melt(base_stats, id.vars = c("gameID", "position"))
 
 ggplot(d,aes(x = value, y = ..count.., colour = position)) + facet_wrap(~variable,scales = "free_x") +
-  geom_density() + theme_dlin() + scale_y_continuous(limits = c(0, 10000))
+  geom_density() + theme_dlin() + scale_y_continuous(limits = c(0, 10000)) + theme(legend.position="bottom")
 
 ```
 
@@ -738,7 +736,7 @@ ggplot(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(season_code,team)],
        aes(factor(team),mean_opp_fd,colour=factor(season_code))) + geom_point() + 
   theme_dlin() + facet_grid(season_code~.) +
   labs(title = 'FD Points Allowed by Team',x='team',y='average fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season")
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season") + theme(legend.position="bottom")
 
 head(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(team)][order(mean_opp_fd)],5)
 tail(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(team)][order(mean_opp_fd)],5)
@@ -772,7 +770,7 @@ pa_pos = melt(pa_pos,id.vars = c('season_code','team'))
 
 ggplot(pa_pos[season_code==20152016,],aes(factor(team),value,colour=factor(variable))) + geom_point() + theme_dlin() +
   labs(title = 'NBA Fanduel Points Allowed by Team to Each Position for the 2015-2016 Season',x='team',y='team mean total allowed fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Position",labels=c("opp_pg_fd" = "PG", "opp_sg_fd" = "SG","opp_sf_fd" = "SF","opp_pf_fd"="PF","opp_c_fd"="C"))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Position",labels=c("opp_pg_fd" = "PG", "opp_sg_fd" = "SG","opp_sf_fd" = "SF","opp_pf_fd"="PF","opp_c_fd"="C")) + theme(legend.position="bottom")
 ```
 
 
@@ -799,7 +797,7 @@ lebron = player_data[player == 'LeBron James',.(mean_fd = mean(fd), count = .N),
 ggplot(lebron,aes(reorder(factor(opponent),-mean_fd),mean_fd,colour=factor(season_code))) + geom_point() + 
   theme_dlin() + facet_grid(season_code~.) +
   labs(title = 'LeBron James Average Fanduel Points Against Each Team',x='team',y='average fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season")
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season") + theme(legend.position="bottom")
 
 head(lebron[!(opponent %in% c('MIA','CLE')),.(mean_fd=mean(mean_fd)),by=opponent][order(mean_fd)],5)
 tail(lebron[!(opponent %in% c('MIA','CLE')),.(mean_fd=mean(mean_fd)),by=opponent][order(mean_fd)],5)
@@ -810,25 +808,42 @@ Lebron scored the most against Charlotte and OKC across his past 4 seasons, and 
 
 ## <a name="final"></a>Final Plots and Summary
 
+The first final plot chosen was created using one of the engineered feature variables. The variable created was the amount of fantasy points allowed by each team to each opposing position for every game. The plot below shows the average fantasy points allowed to each position over all seasons present in the data set.
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-##enter code here
+ggplot(pa_pos,aes(factor(team),value,colour=factor(variable))) + geom_point() + facet_grid(season_code~.) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points Allowed by Team to Each Position',x='team',y='team mean total allowed fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Position",labels=c("opp_pg_fd" = "PG", "opp_sg_fd" = "SG","opp_sf_fd" = "SF","opp_pf_fd"="PF","opp_c_fd"="C")) + theme(legend.position="bottom")
 ```
 
-1) points allowed to each position over each season.
-- reflects that point guards and centers score the most
+Multiple insights can be drawn from this plot. All teams allow the most fantasy points to opposing point guards, which was also reflected in a previous plot that showed average fantasy points at each position. The plot also allows for identification of both friendly and un-friendly teams to target in each matchup. For example, Memphis & San Antonio have been two of the strongest defensive teams, allowing the fewest fantasy points to all positions each season. On the other hand, the LA Lakers have been one of the most porous teams.
 
-2) corrplot with various variables for a model
-3) corrplot between positions
+Based on this, a potential feature variable in a predictive model could be a rolling average of fantasy points allowed to each position.
+
+The second plot chosen was a combination of the correlation plots shown earlier.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##corrplot - multiple vairables
+M=cor(player_data[is.na(fd_15) == FALSE & is.na(minutes_15) == FALSE & is.na(FGA_15) == FALSE,
+                   .(fd,fd_15,minutes_15,FGA_15,pos_depth,starter,homeaway,fouls)])
+
+corrplot.mixed(M,lower="number",upper='circle',col=col2(4))
+```
+
+The plot above does a good job of summarizing the variables that have strong positive or negative relationships with fantasy points.
+
+The third plot chosen was another correlation matrix, this time between various positions. The plot is particularly important for coming up with a stacking strategy.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,opp_pg_fd,opp_sg_fd,opp_sf_fd,opp_pf_fd,opp_c_fd)])
+corrplot.mixed(C3,lower="number",upper='circle',col=col2(4))
+```
+
+In general, players on the same team are negatively correlated with each other. The negative correlation is less significant between perimiter & post players (i.e. PG/C or SG/C). The correlation between opposing players at each position is less significant. As a result, choosing players on opposite teams should not have a negative impact on fantasy production, unlike other matchup based fantasy spots where opposing players are more negatively correlated (i.e. hockey goalies & opposing skaters, baseball pitchers and opposing batters).
+
+Overall, many of the feature variables explored show strong linear correlations with fantasy points, laying the groundwork for a powerful, predictive model to be built.
 
 ## <a name="reflection"></a>Reflection
-The section reflects on how the analysis was conducted and reports on the struggles and successes throughout the analysis. The section provides at least one idea or question for future work. The section explains any important decisions in the analysis and how those decisions affected the analysis.
+Overall, using R for the exploratory data analysis was a good experience as the language and development environment in R studio make work quick and easy. Once I learned the syntax of data.table and ggplot, and the useful library reshape, data cleaning, massaging and aggregating became extremely quick and efficient. Being able to quickly group, select and aggregate to produce stats along with plots made the analysis more thorough and informative. Most difficulties encountered were related to formatting with ggplot2 (i.e. changing label title, creating facet grids, custom x-axis labels etc.). Despite these minor difficulties, I find plotting with R & RStudio a much better experience than Python.
 
-Where did I run into difficulties in the analysis?
-Where did I find successes?
-
-How could the analysis be enriched in future work (e.g. additional data and analyses)?
-- add other data sources
---> vegas odds, total projected points --> target players in high scoring games
---> low point spreads, more likely to go to overtime
-
-
+For future work, it is recommended to add in other data sources to explore additional variables that may impact fantasy points. For example, vegas odds variables such as win probability or total projected points could be useful. The analysis showed that games that go to overtime or are high scoring yield higher average fantasy point totals, so games with narrow win margins or high projected point totals could be targeted.
