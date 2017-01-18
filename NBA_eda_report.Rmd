@@ -828,7 +828,7 @@ Based on this, a potential feature variable in a predictive model could be a rol
 
 The second plot chosen was a combination of the correlation plots shown earlier.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10}
 ##corrplot - multiple vairables
 M=cor(player_data[is.na(fd_15) == FALSE & is.na(minutes_15) == FALSE & is.na(FGA_15) == FALSE,
                    .(fd,fd_15,minutes_15,FGA_15,pos_depth,starter,homeaway,fouls)])
@@ -840,7 +840,7 @@ The plot above does a good job of summarizing the variables that have strong pos
 
 The third plot chosen was another correlation matrix, this time between various positions. The plot is particularly important for coming up with a stacking strategy.
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10}
 C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,opp_pg_fd,opp_sg_fd,opp_sf_fd,opp_pf_fd,opp_c_fd)])
 corrplot.mixed(C3,lower="number",upper='circle',col=col2(4))
 ```
