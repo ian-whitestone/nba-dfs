@@ -1,7 +1,7 @@
 ---
 title: "NBA Daily Fantasy Exploration"
 author: "Ian Whitestone"
-date: "January 15, 2017"
+date: "January 17, 2017"
 output: github_document
 ---
 
@@ -40,7 +40,9 @@ This study focuses on the NBA DFS, with a particular emphasis on examining facto
 
 ## <a name="data_import"></a>Data Import & Cleaning
 
-Two csv files were created using the NBA data API. The player_data file contains a record for each player that recorded any statistics during a game. The event data table contains a record for each game, identified by a unique gameID. This gameID can be used to join the two data sources.
+Two csv files were created using Erik Berg's API. The data used in this projected was extracted using several Python modules I created. The Python modules make the necessary API requests to retrieve NBA events for each day and then the corresponding boxscore data for each event. The data is parsed, cleaned and formatted for injection into a lcoally hosted Postgres database. The Python modules and corresponding database schema can be viewed on my github page under the [XML Data Repo](https://github.com/ian-whitestone/xml-data) 
+
+The player_data file contains a record for each player that recorded any statistics during a game. The event data table contains a record for each game, identified by a unique gameID. This gameID can be used to join the two data sources.
 
 Before performing producing any plots or analysis, the data is imported and cleaned.
 
