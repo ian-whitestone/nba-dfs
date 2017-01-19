@@ -471,7 +471,7 @@ player_data[, eff := fd/minutes]
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(player_data,aes(x = eff, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points versus Effeciency', x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points')
+  labs(title = 'NBA Fanduel Points versus Efficiency', x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points')
 ```
 
 While there appears to be some trend, the data is relatively noisy, due to the presence of some high efficiencies.
@@ -486,7 +486,7 @@ All of these outliers appear to be due to scenarios where players recorded multi
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##filter and re-plot
 ggplot(player_data[minutes>5,],aes(x = eff, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points versus minutes', x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points') +
+  labs(title = 'NBA Fanduel Points versus Efficiency', x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points') +
   geom_smooth(method = "lm", se = FALSE,colour='black')
 
 ```
@@ -525,7 +525,7 @@ If a starting or backup point guard is injured, the depth at PG will decrease by
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##minutes vs depth at pos
 ggplot(player_data,aes(x = pos_depth, y = minutes)) + geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points versus minutes', x = 'pos_depth', y = 'minutes') +
+  labs(title = 'NBA Fanduel Points versus Positional Depth', x = 'pos_depth', y = 'minutes') +
   geom_smooth(method = "lm", se = FALSE,colour='black')
 ```
 
@@ -714,6 +714,7 @@ ggplot(player_data[position %in% c('C','PF')],aes(x = opp_rebounds, y = fd)) +
 ```
 
 Centers and power forwards are expected to benefit from weak rebounding teams due to more fantasy points from rebounds and second-chance baskets. The plot above shows a slightly negative trend (i.e. more rebounds by opponents = lower fantsay point production for PFs/Cs).
+
 
 ## <a name="multi_analysis"></a>Multivariate Analysis
 
