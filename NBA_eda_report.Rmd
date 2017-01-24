@@ -3,7 +3,7 @@ title: "NBA Daily Fantasy Exploration"
 author: "Ian Whitestone"
 date: "January 17, 2017"
 output: 
-    github_document:
+    html_document:
       fig_width: 9
       
 ---
