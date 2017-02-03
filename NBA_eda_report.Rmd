@@ -850,12 +850,15 @@ The same analysis can be applied at the individual player level. Lebron's perfor
 lebron = player_data[player == 'LeBron James',.(mean_fd = mean(fd), count = .N), 
                      by = .(opponent,season_code)]
 
-ggplot(lebron,aes(reorder(factor(opponent),-mean_fd),mean_fd,
-                  colour=factor(season_code))) + geom_point() + 
-  theme_dlin() + facet_grid(season_code~.) +
-  labs(title = 'LeBron James Average Fanduel Points Against Each Team',x='team',y='average fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season") + theme(legend.position="bottom")
-
+ggplot(lebron,aes(reorder(factor(opponent),-mean_fd),mean_fd,colour=factor(season_code))) + 
+  geom_bar(position="dodge", stat="identity") + 
+  theme_dlin() + facet_grid(season_code ~ ., scales="free") +
+  labs(title = 'LeBron James Average Fanduel Points Against Each Team',
+       x='team',y='average fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  scale_colour_discrete(name="Season") +
+  theme(legend.position="bottom")
+  
 head(lebron[!(opponent %in% c('MIA','CLE')),.(mean_fd=mean(mean_fd)),
             by=opponent][order(mean_fd)],5)
 tail(lebron[!(opponent %in% c('MIA','CLE')),.(mean_fd=mean(mean_fd)),
