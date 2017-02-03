@@ -755,8 +755,6 @@ ggplot(player_data[position %in% c('C','PF')],aes(x = opp_rebounds, y = fd)) +
 Centers and power forwards are expected to benefit from weak rebounding teams due to more fantasy points from rebounds and second-chance baskets. The plot above shows a slightly negative trend (i.e. more rebounds by opponents = lower fantsay point production for PFs/Cs).
 
 
-## <a name="multi_analysis"></a>Multivariate Analysis
-
 The formula for FD points was shown earlier. The plots below show how the distributions of relevant statistics vary between positions.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
@@ -776,6 +774,8 @@ ggplot(d, aes(x = value, y = ..count.., colour = position)) +
 
 Several conclusions can be drawn from the plot above, all intuitive to someone who has watched the sport. Starting at the top left, centers make the fewest three pointers, followed by power forwards, as indicated by their positvely skewed distributions. Field goals and free throws are similar across all positions. Point guards have the highest number of assists, whereas centers have the highest number of fouls. 
 
+
+## <a name="multi_analysis"></a>Multivariate Analysis
 
 As an extension of what was shown above, I plot the total fd points scored/allowed by the teams over each season.
 
