@@ -98,7 +98,7 @@ As the original data only contains base-level statistics, the first step involve
 
 ```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ##calculate fanduel points
-player_data[,fd:= 3*`3FGM`+2*(FGM-`3FGM`)+1*FTM+1.2*rebounds+1.5*assists+2*blocks+2*steals-1*turnovers]
+player_data[,fd:=1*point+1.2*rebounds+1.5*assists+2*blocks+2*steals-1*turnovers]
 
 ##create a seaosn variable that can be used to distinguish between different seasons
 player_data[,date:=as.Date(date)] ##convert string date to actual date
@@ -141,7 +141,8 @@ roll_variable_mean = function(d, target, windows) {
   i = 1
   
   for (x in windows) {
-    exprl[[i]] = interp(~ lag(roll_mean(tar, w, align = 'right', fill = NA), 1), tar=as.name(target), w=x)
+    exprl[[i]] = interp(~ lag(roll_mean(tar, w, align = 'right', fill = NA), 1),
+                        tar=as.name(target), w=x)
     i = i + 1
   }
   names = paste(target, windows, sep="_")
@@ -150,7 +151,8 @@ roll_variable_mean = function(d, target, windows) {
   d = mutate_(d, .dots = exprl)
   
   for (n in 2:length(names)) {
-    expr = interp(~ ifelse(is.na(long), short, long), long=as.name(names[n]), short=as.name(names[n-1]))
+    expr = interp(~ ifelse(is.na(long), short, long), long=as.name(names[n]),
+                  short=as.name(names[n-1]))
     exprl = setNames(list(expr), names[n])
     d = mutate_(d, .dots = exprl)
   }
@@ -158,21 +160,26 @@ roll_variable_mean = function(d, target, windows) {
   return(d)
 }
 
-
-
 ##add rolling variables
 window_size = seq(5,55,10)
-player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fd', window_size)
-player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'minutes', window_size)
-player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FGA', window_size)
-player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FTA', window_size)
-
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% 
+                roll_variable_mean(., 'fd', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% 
+                roll_variable_mean(., 'minutes', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% 
+                roll_variable_mean(., 'FGA', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% 
+                roll_variable_mean(., 'FTA', window_size)
 
 window_size = seq(1,3,1)
-player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fd', window_size)
-player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'minutes', window_size)
-player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FGA', window_size)
-player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'FTA', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% 
+                roll_variable_mean(., 'fd', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% 
+                roll_variable_mean(., 'minutes', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% 
+                roll_variable_mean(., 'FGA', window_size)
+player_data = player_data %>% group_by(player) %>% arrange(date) %>% 
+                roll_variable_mean(., 'FTA', window_size)
 
 ```
 
@@ -182,8 +189,10 @@ A practical hypothesis is that players/teams that are playing multiple games in 
 ```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 
 ##BACK TO BACK GAME VARIABLE
-days_rest = player_data[,.N,by = .(team,date_num)][,.(team,date_num)][order(team,date_num)]
-days_rest$date_diff = ave(days_rest$date_num, days_rest$team, FUN = function(x) c(10, diff(x)))
+days_rest = player_data[,.N,by = .(team,date_num)][,.(team,date_num)][
+                            order(team,date_num)]
+days_rest$date_diff = ave(days_rest$date_num, days_rest$team, 
+                            FUN = function(x) c(10, diff(x)))
 days_rest$b2b = ifelse(days_rest$date_diff == 1,1,0)
 
 ##add opponent field
@@ -216,10 +225,12 @@ As shown in the column names of event_data, team variables are preceded by 'home
 
 ```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ##calculate final scores for each game
-event_data[,home_score:= sum(home_Q1,home_Q2,home_Q3,home_Q4,home_Q5,home_Q6,home_Q7,home_Q8,na.rm= TRUE),
-           by = 1:NROW(event_data)]
-event_data[,away_score:=sum(away_Q1,away_Q2,away_Q3,away_Q4,away_Q5,away_Q6,away_Q7,away_Q8,na.rm= TRUE),
-           by = 1:NROW(event_data)]
+event_data[,home_score:= sum(home_Q1,home_Q2,home_Q3,home_Q4,home_Q5,home_Q6,
+              home_Q7,home_Q8,na.rm= TRUE),
+              by = 1:NROW(event_data)]
+event_data[,away_score:=sum(away_Q1,away_Q2,away_Q3,away_Q4,away_Q5,away_Q6,
+              away_Q7,away_Q8,na.rm= TRUE),
+              by = 1:NROW(event_data)]
 
 ##to calculate team based statistics, a data frame/table with 2 records per game -
 ##[cont'd] one for each team, is ideal
@@ -234,9 +245,11 @@ away_variables = paste0('away_',team_variables)
 home_variables = paste0('home_',team_variables)
 
 ##data table for the home team of each game
-event_data_1 = event_data[,team:= home_team][,setdiff(colnames(event_data),away_variables),with = FALSE]
+event_data_1 = event_data[,team:= home_team][,
+                  setdiff(colnames(event_data),away_variables),with = FALSE]
 ##data table for hte away team of each game
-event_data_2 = event_data[,team:= away_team][,setdiff(colnames(event_data),home_variables),with = FALSE]
+event_data_2 = event_data[,team:= away_team][,
+                  setdiff(colnames(event_data),home_variables),with = FALSE]
 
 ##change the column names to generic names (i.e. away_FGM --> FGM,home_FTA --> FTA)
 setnames(event_data_1,old = home_variables,new = team_variables)
@@ -254,7 +267,8 @@ Using the new team_data table, team based features can be calculated. The total 
 ##add date to team_data
 setkey(team_data,gameID)
 setkey(player_data,gameID)
-team_data= team_data[player_data[,.N,by = .(gameID,date_num)][,.(gameID,date_num)],nomatch = 0][order(date_num)]
+team_data= team_data[player_data[,.N,by = .(gameID,date_num)][,.(gameID,date_num)],
+                      nomatch = 0][order(date_num)]
 
 ##define opponent in team_data table
 team_data[,opponent:= home_team]
@@ -324,15 +338,20 @@ team_data = team_data[team_data_opp,nomatch = 0]
 ##rolling team statistics
 ##the following stat describes how many fantasy points a team has been giving up to opposing teams,
 ##...[cont'd] expressed as rolling averages over the last X games
-team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_fd', window_size)
-team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_g_fd', window_size)
-team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_p_fd', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% 
+            roll_variable_mean(., 'opp_fd', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% 
+            roll_variable_mean(., 'opp_g_fd', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% 
+            roll_variable_mean(., 'opp_p_fd', window_size)
 
 ##join these features to player_data
 ##join team_data "team" on player_data "opponent"
 rolling_team_variables = colnames(team_data)[grepl('fd_\\w*\\d', colnames(team_data))]
-player_data = merge(player_data, team_data[,append(rolling_team_variables,c("gameID","team")),with = FALSE], 
-                  by.x = c('gameID','opponent'), by.y = c('gameID','team'), all = FALSE)
+
+player_data = merge(player_data, team_data[,append(rolling_team_variables,
+                      c("gameID","team")),with = FALSE], by.x = c('gameID','opponent'),
+                      by.y = c('gameID','team'), all = FALSE)
 
 ```
 
@@ -366,11 +385,12 @@ Another interesting observation is that a few players actually get negative FD p
 Next, we examine a breakdown of the different player positions.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(player_data[position %in% c('PG','SG','SF','PF','C'),],aes(position)) + geom_bar() + theme_dlin() +
-  labs(title = 'NBA Positions Histogram')
+ggplot(player_data[position %in% c('PG','SG','SF','PF','C'),],aes(position)) + 
+  geom_bar() + theme_dlin() + labs(title = 'NBA Positions Histogram')
 
 ##comments - less centers compared to other positions
-player_data[position %in% c('PG','SG','SF','PF','C'),][,.(avg_per_game=.N/(NROW(event_data) *2)),by = position]
+player_data[position %in% c('PG','SG','SF','PF','C'),][,
+                  .(avg_per_game=.N/(NROW(event_data) *2)),by = position]
 
 ```
 
@@ -380,10 +400,12 @@ Next, we examine the length of each game. Games that run for extended periods al
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 # How many games go to OT?
-dat = melt(event_data[ , `:=` (Regular = sum(ifelse(is.na(home_Q4),0,1)), Single_OT = sum(ifelse(is.na(home_Q5),0,1)),
-                          Double_OT = sum(ifelse(is.na(home_Q6),0,1)), Triple_OT = sum(ifelse(is.na(home_Q7),0,1)),
-                          Quad_OT = sum(ifelse(is.na(home_Q8),0,1)))][
-                          ,.(Regular,Single_OT,Double_OT,Triple_OT,Quad_OT)][0:1])
+dat = melt(event_data[ , `:=` (Regular = sum(ifelse(is.na(home_Q4),0,1)), 
+                               Single_OT = sum(ifelse(is.na(home_Q5),0,1)),
+                               Double_OT = sum(ifelse(is.na(home_Q6),0,1)), 
+                               Triple_OT = sum(ifelse(is.na(home_Q7),0,1)),
+                                Quad_OT = sum(ifelse(is.na(home_Q8),0,1)))][,
+                          .(Regular,Single_OT,Double_OT,Triple_OT,Quad_OT)][0:1])
 
 colnames(dat) = c("Game_Length", "count")
 
@@ -438,10 +460,14 @@ A logical starting point is to look at how a player's previous FD points predict
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 r2 = summary(lm(player_data$fd ~ player_data$fd_5))$r.squared
 
-p = ggplot(player_data,aes(x = fd_5, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points versus Previous Points', x = 'fd points mean of last 5 games', y = 'fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
+p = ggplot(player_data,aes(x = fd_5, y = fd)) + geom_point(colour=palette[5]) + 
+    theme_dlin() +labs(title = 'NBA Fanduel Points versus Previous Points', 
+    x = 'fd points mean of last 5 games', y = 'fanduel points') + 
+    geom_smooth(method = "lm", se = FALSE,colour='black')
 
-p + annotate("text", x = 10, y = 75, parse=TRUE, label=paste('R^2: ',substr(as.character(r2),0,4)), family="serif", fontface="italic", colour="black", size=5)
+p + annotate("text", x = 10, y = 75, parse=TRUE, 
+             label=paste('R^2: ',substr(as.character(r2),0,4)), family="serif", 
+             fontface="italic", colour="black", size=5)
 
 ```
 
@@ -453,11 +479,14 @@ While previous FD points is a strong feature itself, it doesn't account for any 
 r2 = summary(lm(player_data$fd ~ player_data$minutes))$r.squared
 
 
-p = ggplot(player_data,aes(x = minutes, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points versus minutes', x = 'minutes', y = 'fanduel points') +
-  geom_smooth(method = "lm", se = FALSE,colour='black') 
+p = ggplot(player_data,aes(x = minutes, y = fd)) + geom_point(colour=palette[5]) + 
+      theme_dlin() + labs(title = 'NBA Fanduel Points versus minutes', x = 'minutes', 
+                          y = 'fanduel points') + geom_smooth(method = "lm", 
+                          se = FALSE,colour='black') 
 
-p + annotate("text", x = 15, y = 55, parse=TRUE, label=paste('R^2: ',substr(as.character(r2),0,4)), family="serif", fontface="italic", colour="black", size=5)
+p + annotate("text", x = 15, y = 55, parse=TRUE, 
+             label=paste('R^2: ',substr(as.character(r2),0,4)), family="serif", 
+             fontface="italic", colour="black", size=5)
 ```
 
 The plot above shows that there is a very strong relationship between minutes played and FD points, R2 ~ 0.65. Minutes correlates significantly stronger than past FD points. This is intuitive, as more time spent on the court allows players produce more, via shots, rebounds, assists etc. It also does a better job of explaining variation from a player's mean, as some nights a player will play more/less as dictated by the flow of the game. 
@@ -471,22 +500,26 @@ player_data[, eff := fd/minutes]
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(player_data,aes(x = eff, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points versus Efficiency', x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points')
+  labs(title = 'NBA Fanduel Points versus Efficiency', 
+        x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points')
 ```
 
 While there appears to be some trend, the data is relatively noisy, due to the presence of some high efficiencies.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 #examine some outliers
-glimpse(player_data[eff>3,.(gameID,player,minutes,fd,`3FGM`,FGM,FTM,rebounds,assists,blocks,steals,turnovers)][0:10])
+glimpse(player_data[eff>3,.(gameID,player,minutes,fd,`3FGM`,FGM,FTM,rebounds,
+                              assists,blocks,steals,turnovers)][0:10])
 ```
 
 All of these outliers appear to be due to scenarios where players recorded multiple points, assists or rebounds in under 3 minutes; clearly un-sustainable production.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##filter and re-plot
-ggplot(player_data[minutes>5,],aes(x = eff, y = fd)) + geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points versus Efficiency', x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points') +
+ggplot(player_data[minutes>5,],aes(x = eff, y = fd)) + 
+  geom_point(colour=palette[5]) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points versus Efficiency', 
+  x = 'FD Points Per Minute (Efficiency)', y = 'fanduel points') +
   geom_smooth(method = "lm", se = FALSE,colour='black')
 
 ```
@@ -524,9 +557,9 @@ If a starting or backup point guard is injured, the depth at PG will decrease by
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##minutes vs depth at pos
-ggplot(player_data,aes(x = pos_depth, y = minutes)) + geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points versus Positional Depth', x = 'pos_depth', y = 'minutes') +
-  geom_smooth(method = "lm", se = FALSE,colour='black')
+ggplot(player_data,aes(x = pos_depth, y = minutes)) + geom_point(colour=palette[5]) + 
+  theme_dlin() + labs(title = 'NBA Fanduel Points versus Positional Depth', 
+  x = 'pos_depth', y = 'minutes') + geom_smooth(method = "lm", se = FALSE, colour='black')
 ```
 
 There appears to be a significant trend between positional depth and minutes played. As expected, greater positional depth leads to less playing time. There appears to be some outliers at pos_depth>5, as it is highly unlikely that a team would carry more than 5 players at a single position.
@@ -548,10 +581,12 @@ As shown above, a total of 109 duplicates are present. This isn't expected to ha
 Next, the correlation of different rolling minutes played is examined.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-M3=cor(player_data[is.na(minutes_1) == FALSE & is.na(minutes_2) == FALSE & is.na(minutes_3) == FALSE &
-                     is.na(minutes_5) == FALSE & is.na(minutes_15) == FALSE & is.na(minutes_25) == FALSE & 
+M3=cor(player_data[is.na(minutes_1) == FALSE & is.na(minutes_2) == FALSE & 
+                     is.na(minutes_3) == FALSE & is.na(minutes_5) == FALSE & 
+                     is.na(minutes_15) == FALSE & is.na(minutes_25) == FALSE & 
                      is.na(minutes_35) == FALSE & is.na(minutes_55) == FALSE,
-                   .(fd,minutes_1,minutes_2,minutes_3,minutes_5,minutes_15,minutes_25,minutes_35,minutes_55)])
+                   .(fd,minutes_1,minutes_2,minutes_3,minutes_5,minutes_15,
+                     minutes_25,minutes_35,minutes_55)])
 corrplot.mixed(M3,lower="number",upper='circle')
 ```
 
@@ -574,8 +609,9 @@ Similar to the rolling minutes variables, we examine which rolling FD points var
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 ##corrplot - rolling variables
-M2=cor(player_data[is.na(fd_1) == FALSE & is.na(fd_2) == FALSE & is.na(fd_3) == FALSE &
-                     is.na(fd_5) == FALSE & is.na(fd_15) == FALSE & is.na(fd_25) == FALSE & 
+M2=cor(player_data[is.na(fd_1) == FALSE & is.na(fd_2) == FALSE & 
+                     is.na(fd_3) == FALSE & is.na(fd_5) == FALSE & 
+                     is.na(fd_15) == FALSE & is.na(fd_25) == FALSE & 
                      is.na(fd_35) == FALSE & is.na(fd_55) == FALSE,
                    .(fd,fd_1,fd_2,fd_3,fd_5,fd_15,fd_25,fd_35,fd_55)])
 
@@ -588,7 +624,8 @@ Next, we see which players tend to record the most FD points.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##points scored by position
-ggplot(player_data,aes(reorder(factor(position),-fd,median),fd)) + geom_boxplot() + theme_dlin() +
+ggplot(player_data,aes(reorder(factor(position),-fd,median),fd)) + 
+  geom_boxplot() + theme_dlin() +
   labs(title = 'NBA Fanduel Points By Position',x='position',y='fd')
 
 player_data[,.(mean_fd=mean(fd)),by=position][order(mean_fd)]
@@ -600,8 +637,10 @@ The total fanduel points scored by each team last season is shown below.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##points scored by team
-ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],aes(reorder(factor(team),-team_fd,median),team_fd)) + geom_boxplot() + theme_dlin() +
-  labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',y='team total fanduel points') + 
+ggplot(player_data[season_code==20152016,.N,by=.(gameID,team,team_fd)],
+  aes(reorder(factor(team),-team_fd,median),team_fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points By Team for the 2015-2016 Season',x='team',
+  y='team total fanduel points') + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ```
@@ -612,8 +651,10 @@ The total fanduel points allowed by each team last season is shown below.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##points allowed by team
-ggplot(team_data[season_code==20122013,.N,by=.(gameID,team,opp_fd)],aes(reorder(factor(team),-opp_fd,median),opp_fd)) + geom_boxplot() + theme_dlin() +
-  labs(title = 'FD Points Allowed by Team for the 2015-2016 Season',x='team',y='team total allowed fanduel points') + 
+ggplot(team_data[season_code==20122013,.N,by=.(gameID,team,opp_fd)],
+  aes(reorder(factor(team),-opp_fd,median),opp_fd)) + geom_boxplot() + theme_dlin() +
+  labs(title = 'FD Points Allowed by Team for the 2015-2016 Season',
+  x='team',y='team total allowed fanduel points') + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ```
@@ -644,7 +685,8 @@ corrplot.mixed(C2,lower="number",upper='circle',col=col2(4))
 The cell with -0.38 represents the correlation between the total point guard fantasy points and total shooting guard fantasy points. In general, players on the same team are negatively correlated with each other. Intuitively this makes sense, as the stolen shot attempts from one player outweigh the fantasy points generated by assists. The negative correlation is less significant between perimiter & post players (i.e. PG/C or SG/C).
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,opp_pg_fd,opp_sg_fd,opp_sf_fd,opp_pf_fd,opp_c_fd)])
+C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,opp_pg_fd,
+                      opp_sg_fd,opp_sf_fd,opp_pf_fd,opp_c_fd)])
 corrplot.mixed(C3,lower="number",upper='circle',col=col2(4))
 ```
 
@@ -653,7 +695,8 @@ The correlation between opposing players at each position is less significant.
 Next, correlation among the starting players is examined (as opposed to bench + startings player from above)
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results = 'hide'}
-starter_data = dcast(player_data[starter == 1,], gameID + team ~ position, fun.aggregate = mean, value.var = c('fd'), na.rm=T)
+starter_data = dcast(player_data[starter == 1,], gameID + team ~ position, 
+                     fun.aggregate = mean, value.var = c('fd'), na.rm=T)
 starter_data = as.data.table(starter_data)
 ```
 
@@ -680,9 +723,13 @@ player_data[team_score > 125, score_bucket := 4]
 And the results shown below.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(player_data[,.(mean_fd = mean(fd)),by = score_bucket],aes(x = score_bucket, y = mean_fd)) + 
-  geom_point(colour=palette[5]) + theme_dlin() + scale_x_continuous(breaks=1:4,labels = c("<75",">75",">100",">125")) +
-  labs(title = 'NBA Fanduel Points - Effect of High Scoring Games', x = 'total points scored', y = 'average fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
+ggplot(player_data[,.(mean_fd = mean(fd)),by = score_bucket],
+       aes(x = score_bucket, y = mean_fd)) + 
+  geom_point(colour=palette[5]) + theme_dlin() + 
+  scale_x_continuous(breaks=1:4,labels = c("<75",">75",">100",">125")) +
+  labs(title = 'NBA Fanduel Points - Effect of High Scoring Games', 
+  x = 'total points scored', y = 'average fanduel points') + 
+  geom_smooth(method = "lm", se = FALSE,colour='black')
 ```
 
 As expected, high scoring games correlate directly with higher fantasy point production. Oddsmaker publish projection point totals for each NBA game, so players playing in high projected point games should be targeted.
@@ -692,7 +739,8 @@ Lastly, I examine the effect of weak rebounding teams and teams with lots of tur
 ```{r echo=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ###opponent rebounds and turnovers
 opp_stats = team_data[, .(gameID,team,rebounds,turnovers)]
-setnames(opp_stats, old=c('team','rebounds','turnovers'), new=c('opponent','opp_rebounds','opp_turnovers'))
+setnames(opp_stats, old=c('team','rebounds','turnovers'), 
+         new=c('opponent','opp_rebounds','opp_turnovers'))
 
 player_data = player_data %>% inner_join(opp_stats)
 ```
@@ -701,7 +749,8 @@ player_data = player_data %>% inner_join(opp_stats)
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(player_data,aes(x = opp_turnovers, y = fd)) + 
   geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points - Effect of Opponent Turnovers', x = 'opponent turnovers', y = 'fanduel points') +
+  labs(title = 'NBA Fanduel Points - Effect of Opponent Turnovers', 
+       x = 'opponent turnovers', y = 'fanduel points') +
   geom_smooth(method = "lm", se = FALSE,colour='black')
 ```
 
@@ -710,7 +759,9 @@ When opposing teams turn the ball over more frequently is does not necessarily l
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(player_data[position %in% c('C','PF')],aes(x = opp_rebounds, y = fd)) + 
   geom_point(colour=palette[5]) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points - Effect of Opponent Rebounds on Centers', x = 'opponent rebounds', y = 'fanduel points') + geom_smooth(method = "lm", se = FALSE,colour='black')
+  labs(title = 'NBA Fanduel Points - Effect of Opponent Rebounds on Centers', 
+       x = 'opponent rebounds', y = 'fanduel points') + 
+  geom_smooth(method = "lm", se = FALSE,colour='black')
 ```
 
 Centers and power forwards are expected to benefit from weak rebounding teams due to more fantasy points from rebounds and second-chance baskets. The plot above shows a slightly negative trend (i.e. more rebounds by opponents = lower fantsay point production for PFs/Cs).
@@ -721,16 +772,17 @@ Centers and power forwards are expected to benefit from weak rebounding teams du
 The formula for FD points was shown earlier. The plots below show how the distributions of relevant statistics vary between positions.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-base_stats = player_data[, .(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, FTM = sum(FTM)/.N,
-                          rebounds = sum(rebounds)/.N, assists = sum(assists)/.N,
-                          blocks = sum(blocks)/.N, steals = sum(steals)/.N,
-                          turnovers = sum(turnovers)/.N, fouls = sum(fouls)/.N),
-                         by = .(gameID, position)]
+base_stats = player_data[, .(`3FGM` = sum(`3FGM`)/.N , FGM = sum(FGM)/.N, 
+                             FTM = sum(FTM)/.N, rebounds = sum(rebounds)/.N, 
+                             assists = sum(assists)/.N, blocks = sum(blocks)/.N, 
+                             steals = sum(steals)/.N, turnovers = sum(turnovers)/.N, 
+                             fouls = sum(fouls)/.N), by = .(gameID, position)]
 
 d = melt(base_stats, id.vars = c("gameID", "position"))
 
-ggplot(d, aes(x = value, y = ..count.., colour = position)) + facet_wrap(~variable,scales = "free_x") +
-  geom_density() + theme_dlin() + scale_y_continuous(limits = c(0, 10000)) + theme(legend.position="bottom")
+ggplot(d, aes(x = value, y = ..count.., colour = position)) + 
+  facet_wrap(~variable,scales = "free_x") + geom_density() + theme_dlin() + 
+  scale_y_continuous(limits = c(0, 10000)) + theme(legend.position="bottom")
 
 ```
 
@@ -744,7 +796,8 @@ ggplot(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(season_code,team)],
        aes(factor(team),mean_opp_fd,colour=factor(season_code))) + geom_point() + 
   theme_dlin() + facet_grid(season_code~.) +
   labs(title = 'FD Points Allowed by Team',x='team',y='average fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season") + theme(legend.position="bottom")
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  scale_colour_discrete(name="Season") + theme(legend.position="bottom")
 
 head(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(team)][order(mean_opp_fd)],5)
 tail(team_data[,.(mean_opp_fd = mean(opp_fd)),by=.(team)][order(mean_opp_fd)],5)
@@ -757,7 +810,8 @@ ggplot(team_data[,.(mean_team_fd = mean(team_fd)),by=.(season_code,team)],
        aes(factor(team),mean_team_fd,colour=factor(season_code))) + geom_point() + 
   theme_dlin() + facet_grid(season_code~.) +
   labs(title = 'FD Points Scored by Team',x='team',y='average fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season") + theme(legend.position="bottom")
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  scale_colour_discrete(name="Season") + theme(legend.position="bottom")
 
 head(team_data[,.(mean_team_fd = mean(team_fd)),by=.(team)][order(-mean_team_fd)],5)
 tail(team_data[,.(mean_team_fd = mean(team_fd)),by=.(team)][order(-mean_team_fd)],5)
@@ -770,14 +824,19 @@ Next, we see which teams give up the most points to each position.
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##points allowed by team to each position, do one coloured dot for each position
 pa_pos = team_data[,.(opp_pg_fd = mean(opp_pg_fd), opp_sg_fd = mean(opp_sg_fd),
-                                  opp_sf_fd = mean(opp_sf_fd),opp_pf_fd = mean(opp_pf_fd),opp_c_fd = mean(opp_c_fd)),
-          by = .(season_code,team)]
+                      opp_sf_fd = mean(opp_sf_fd), opp_pf_fd = mean(opp_pf_fd), 
+                      opp_c_fd = mean(opp_c_fd)), by = .(season_code,team)]
 
 pa_pos = melt(pa_pos,id.vars = c('season_code','team'))
 
-ggplot(pa_pos[season_code==20152016,],aes(factor(team),value,colour=factor(variable))) + geom_point() + theme_dlin() +
-  labs(title = 'NBA Fanduel Points Allowed by Team to Each Position for the 2015-2016 Season',x='team',y='team mean total allowed fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Position",labels=c("opp_pg_fd" = "PG", "opp_sg_fd" = "SG","opp_sf_fd" = "SF","opp_pf_fd"="PF","opp_c_fd"="C")) + theme(legend.position="bottom")
+ggplot(pa_pos[season_code==20152016,],aes(factor(team),value,colour=factor(variable))) + 
+  geom_point() + theme_dlin() +
+  labs(title = 'NBA Fanduel Points Allowed by Team to Each Position for the 2015-2016 Season',
+       x='team',y='team mean total allowed fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  scale_colour_discrete(name="Position",labels=c("opp_pg_fd" = "PG", 
+  "opp_sg_fd" = "SG","opp_sf_fd" = "SF","opp_pf_fd"="PF","opp_c_fd"="C")) + 
+  theme(legend.position="bottom")
 ```
 
 
@@ -799,15 +858,19 @@ The same analysis can be applied at the individual player level. Lebron's perfor
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##lebrons points against certain teams
-lebron = player_data[player == 'LeBron James',.(mean_fd = mean(fd), count = .N), by = .(opponent,season_code)]
+lebron = player_data[player == 'LeBron James',.(mean_fd = mean(fd), count = .N), 
+                     by = .(opponent,season_code)]
 
-ggplot(lebron,aes(reorder(factor(opponent),-mean_fd),mean_fd,colour=factor(season_code))) + geom_point() + 
+ggplot(lebron,aes(reorder(factor(opponent),-mean_fd),mean_fd,
+                  colour=factor(season_code))) + geom_point() + 
   theme_dlin() + facet_grid(season_code~.) +
   labs(title = 'LeBron James Average Fanduel Points Against Each Team',x='team',y='average fanduel points') + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Season") + theme(legend.position="bottom")
 
-head(lebron[!(opponent %in% c('MIA','CLE')),.(mean_fd=mean(mean_fd)),by=opponent][order(mean_fd)],5)
-tail(lebron[!(opponent %in% c('MIA','CLE')),.(mean_fd=mean(mean_fd)),by=opponent][order(mean_fd)],5)
+head(lebron[!(opponent %in% c('MIA','CLE')),.(mean_fd=mean(mean_fd)),
+            by=opponent][order(mean_fd)],5)
+tail(lebron[!(opponent %in% c('MIA','CLE')),.(mean_fd=mean(mean_fd)),
+            by=opponent][order(mean_fd)],5)
 ```
 
 Lebron scored the most against Charlotte and OKC across his past 4 seasons, and was held to his lowest average fantasy points against Portland and Brooklyn.
@@ -818,9 +881,14 @@ Lebron scored the most against Charlotte and OKC across his past 4 seasons, and 
 The first final plot chosen was created using one of the engineered feature variables. The variable created was the amount of fantasy points allowed by each team to each opposing position for every game. The plot below shows the average fantasy points allowed to each position over all seasons present in the data set.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(pa_pos,aes(factor(team),value,colour=factor(variable))) + geom_point() + facet_grid(season_code~.) + theme_dlin() +
-  labs(title = 'NBA Fanduel Points Allowed by Team to Each Position',x='team',y='team mean total allowed fanduel points') + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + scale_colour_discrete(name="Position",labels=c("opp_pg_fd" = "PG", "opp_sg_fd" = "SG","opp_sf_fd" = "SF","opp_pf_fd"="PF","opp_c_fd"="C")) + theme(legend.position="bottom")
+ggplot(pa_pos,aes(factor(team),value,colour=factor(variable))) + geom_point() + 
+  facet_grid(season_code~.) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points Allowed by Team to Each Position',x='team',
+       y='team mean total allowed fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  scale_colour_discrete(name="Position",labels=c("opp_pg_fd" = "PG", 
+    "opp_sg_fd" = "SG","opp_sf_fd" = "SF","opp_pf_fd"="PF","opp_c_fd"="C")) + 
+  theme(legend.position="bottom")
 ```
 
 Multiple insights can be drawn from this plot. All teams allow the most fantasy points to opposing point guards, which was also reflected in a previous plot that showed average fantasy points at each position. The plot also allows for identification of both friendly and un-friendly teams to target in each matchup. For example, Memphis & San Antonio have been two of the strongest defensive teams, allowing the fewest fantasy points to all positions each season. On the other hand, the LA Lakers have been one of the most porous teams.
@@ -831,7 +899,8 @@ The second plot chosen was a combination of the correlation plots shown earlier.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10}
 ##corrplot - multiple vairables
-M=cor(player_data[is.na(fd_15) == FALSE & is.na(minutes_15) == FALSE & is.na(FGA_15) == FALSE,
+M=cor(player_data[is.na(fd_15) == FALSE & is.na(minutes_15) == FALSE & 
+                    is.na(FGA_15) == FALSE,
                    .(fd,fd_15,minutes_15,FGA_15,pos_depth,starter,homeaway,fouls)])
 
 corrplot.mixed(M,lower="number",upper='circle',col=col2(4))
@@ -842,7 +911,8 @@ The plot above does a good job of summarizing the variables that have strong pos
 The third plot chosen was another correlation matrix, this time between various positions. The plot is particularly important for coming up with a stacking strategy.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10}
-C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,opp_pg_fd,opp_sg_fd,opp_sf_fd,opp_pf_fd,opp_c_fd)])
+C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,opp_pg_fd,opp_sg_fd,
+                      opp_sf_fd,opp_pf_fd,opp_c_fd)])
 corrplot.mixed(C3,lower="number",upper='circle',col=col2(4))
 ```
 
