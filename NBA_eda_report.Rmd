@@ -573,12 +573,12 @@ M3=cor(player_data[is.na(minutes_1) == FALSE & is.na(minutes_2) == FALSE &
                      is.na(minutes_3) == FALSE & is.na(minutes_5) == FALSE & 
                      is.na(minutes_15) == FALSE & is.na(minutes_25) == FALSE & 
                      is.na(minutes_35) == FALSE & is.na(minutes_55) == FALSE,
-                   .(fd,minutes_1,minutes_2,minutes_3,minutes_5,minutes_15,
+                   .(minutes,minutes_1,minutes_2,minutes_3,minutes_5,minutes_15,
                      minutes_25,minutes_35,minutes_55)])
 corrplot.mixed(M3,lower="number",upper='circle')
 ```
 
-The average minutes played in the last 5 & 15 games appears to be the strongest predictor of minutes played on a nightly basis.
+The average minutes played in the last 3-5 games & 15 games appears to be the strongest predictor of minutes played on a nightly basis. Minutes_5 and minutes_15 have correlations of 0.77, 0.76, respectively with actual minutes played.
 
 Next, we examine if certain positions tend to record more minutes than others.
 
