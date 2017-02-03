@@ -843,6 +843,23 @@ head(pa_pos[season_code==20152016 & variable == 'opp_c_fd',][order(value)],2)
 
 Atlanta & Boston gave up the least amount of points to opposing point guards whereas Golden State and Cleveland were the best at containing opposing centers.
 
+
+As an extension of the figure above, the plot below shows the average fantasy points allowed to each position over all seasons present in the data set.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(pa_pos,aes(factor(team),value,colour=factor(variable))) + geom_point() + 
+  facet_grid(season_code~.) + theme_dlin() +
+  labs(title = 'NBA Fanduel Points Allowed by Team to Each Position',x='team',
+       y='team mean total allowed fanduel points') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  scale_colour_discrete(name="Position",labels=c("opp_pg_fd" = "PG", 
+    "opp_sg_fd" = "SG","opp_sf_fd" = "SF","opp_pf_fd"="PF","opp_c_fd"="C")) + 
+  theme(legend.position="bottom")
+```
+
+Over all seasons, teams give up the most fantasy points to point guards and power forwards.
+
+
 The same analysis can be applied at the individual player level. Lebron's performance against teams each season is show.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
@@ -896,7 +913,7 @@ M=cor(player_data[is.na(fd_15) == FALSE & is.na(minutes_15) == FALSE &
                    .(fd,fd_15,minutes_15,FGA_15,pos_depth,starter,homeaway,fouls)])
 
 corrplot.mixed(M,lower="number",upper='circle',col=col2(4),
-               title='Correlation of Potential FD Features')
+               title='Correlation of Potential FD Features',mar=c(0,0,1,0))
 ```
 
 The plot above does a good job of summarizing the variables that have strong positive or negative relationships with fantasy points.
@@ -907,7 +924,7 @@ The third plot chosen was another correlation matrix, this time between various 
 C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,opp_pg_fd,opp_sg_fd,
                       opp_sf_fd,opp_pf_fd,opp_c_fd)])
 corrplot.mixed(C3,lower="number",upper='circle',col=col2(4),
-               title="Correlation Between Various Positions")
+               title="Correlation Between Various Positions",mar=c(0,0,1,0))
 ```
 
 In general, players on the same team are negatively correlated with each other. The negative correlation is less significant between perimiter & post players (i.e. PG/C or SG/C). The correlation between opposing players at each position is less significant. As a result, choosing players on opposite teams should not have a negative impact on fantasy production, unlike other matchup based fantasy spots where opposing players are more negatively correlated (i.e. hockey goalies & opposing skaters, baseball pitchers and opposing batters).
