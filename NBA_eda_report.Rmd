@@ -545,9 +545,10 @@ If a starting or backup point guard is injured, the depth at PG will decrease by
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ##minutes vs depth at pos
-ggplot(player_data,aes(x = pos_depth, y = minutes)) + geom_point(colour=palette[5]) + 
+ggplot(player_data,aes(factor(pos_depth),minutes)) + geom_boxplot() +
   theme_dlin() + labs(title = 'NBA Fanduel Points versus Positional Depth', 
   x = 'pos_depth', y = 'minutes') + geom_smooth(method = "lm", se = FALSE, colour='black')
+
 ```
 
 There appears to be a significant trend between positional depth and minutes played. As expected, greater positional depth leads to less playing time. There appears to be some outliers at pos_depth>5, as it is highly unlikely that a team would carry more than 5 players at a single position.
@@ -891,7 +892,8 @@ M=cor(player_data[is.na(fd_15) == FALSE & is.na(minutes_15) == FALSE &
                     is.na(FGA_15) == FALSE,
                    .(fd,fd_15,minutes_15,FGA_15,pos_depth,starter,homeaway,fouls)])
 
-corrplot.mixed(M,lower="number",upper='circle',col=col2(4))
+corrplot.mixed(M,lower="number",upper='circle',col=col2(4),
+               title='Correlation of Potential FD Features')
 ```
 
 The plot above does a good job of summarizing the variables that have strong positive or negative relationships with fantasy points.
@@ -901,7 +903,8 @@ The third plot chosen was another correlation matrix, this time between various 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.height=10}
 C3 = cor(team_data[,.(pg_fd,sg_fd,sf_fd,pf_fd,c_fd,opp_pg_fd,opp_sg_fd,
                       opp_sf_fd,opp_pf_fd,opp_c_fd)])
-corrplot.mixed(C3,lower="number",upper='circle',col=col2(4))
+corrplot.mixed(C3,lower="number",upper='circle',col=col2(4),
+               title="Correlation Between Various Positions")
 ```
 
 In general, players on the same team are negatively correlated with each other. The negative correlation is less significant between perimiter & post players (i.e. PG/C or SG/C). The correlation between opposing players at each position is less significant. As a result, choosing players on opposite teams should not have a negative impact on fantasy production, unlike other matchup based fantasy spots where opposing players are more negatively correlated (i.e. hockey goalies & opposing skaters, baseball pitchers and opposing batters).
