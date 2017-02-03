@@ -5,24 +5,14 @@ date: "January 17, 2017"
 output: 
     html_document:
       fig_width: 9
-      
+      toc: true
+      toc_depth: 3
+      toc_float: true
 ---
 
 ```{r setup, include=FALSE}
 
 ```
-
-##Table of Contents
-
-
-- [Introduction](#introduction)
-- [Data Import & Cleaning](#data_import)
-- [Feature Engineering](#features)
-- [Univariate Analysis](#uni_analysis)
-- [Bivariate Analysis](#bi_analysis)
-- [Multivariate Analysis](#multi_analysis)
-- [Final Plots and Summary](#final)
-- [Reflection](#reflection)
 
 ## <a name="introduction"></a>Introduction
 
@@ -30,9 +20,7 @@ output:
 
 This study focuses on the NBA DFS, with a particular emphasis on examining factors that influence a player's score. The NBA data used in the study is sourced from Erik Berg's [API](https://erikberg.com/api). The study covers NBA data from the 2012-2013 season, up until the 2015-2016 season. Fantasy points are calculated using Fanduel's scoring system, described below. Unlike other sports, all positions in the NBA are scored using the same system.
 
-* 3-pt FG = 3pts
-* 2-pt FG = 2pts
-* FT = 1pt
+* Point = 1pt
 * Rebound = 1.2pts
 * Assist = 1.5pts
 * Block = 2pts
@@ -98,7 +86,7 @@ As the original data only contains base-level statistics, the first step involve
 
 ```{r eval=TRUE, message=FALSE, warning=FALSE,results='hide'}
 ##calculate fanduel points
-player_data[,fd:=1*point+1.2*rebounds+1.5*assists+2*blocks+2*steals-1*turnovers]
+player_data[,fd:=1*points+1.2*rebounds+1.5*assists+2*blocks+2*steals-1*turnovers]
 
 ##create a seaosn variable that can be used to distinguish between different seasons
 player_data[,date:=as.Date(date)] ##convert string date to actual date
