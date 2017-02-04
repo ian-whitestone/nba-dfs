@@ -206,22 +206,6 @@ team_data=team_data[player_data[,.N,by=.(gameID,date_num)][,.(gameID,date_num)],
 team_data[,opponent:=home_team]
 team_data[team==home_team,opponent:=away_team]
 
-###team total FD points
-team_tot_fd=player_data[,.(team_fd=sum(fd)),by=.(gameID,team)]
-setkey(team_tot_fd,gameID,team)
-setkey(player_data,gameID,team)
-setkey(team_data,gameID,team)
-player_data=player_data[team_tot_fd,nomatch=0]
-team_data=team_data[team_tot_fd,nomatch=0]
-  
-###opponent total FD points
-team_tot_fd[,`:=` (opponent = team, team = NULL,opp_fd=team_fd,team_fd=NULL)]
-setkey(team_tot_fd,gameID,opponent)
-setkey(player_data,gameID,opponent)
-setkey(team_data,gameID,opponent)
-player_data=player_data[team_tot_fd,nomatch=0]
-team_data=team_data[team_tot_fd,nomatch=0]
-
 ###opponent rebounds and turnovers
 opp_stats = team_data[,.(team,rebounds,turnovers)]
 opp_stats[,`:=` (opponent = team, team = NULL)]
@@ -307,9 +291,6 @@ team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_m
 team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_pf_fd_n', window_size)
 team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_c_fd_n', window_size)
 
-
-## IAN - NORMALIZE THESE EITHER BY NUMBER OF PLAYERS AT THAT POSITION OR STARTER VS BENCH sep features
-
 ##join these features to player_data
 ##join team_data "team" on player_data "opponent"
 rolling_team_variables= colnames(team_data)[grepl('fd_\\w*\\d', colnames(team_data))]
@@ -319,30 +300,42 @@ player_data=merge(player_data, team_data[,append(rolling_team_variables,c("gameI
 
 player_data[position == 'PG', `:=` (opp_fd_1 = opp_pg_fd_1, opp_fd_2 = opp_pg_fd_2, opp_fd_3 = opp_pg_fd_3, 
                                     opp_fd_5 = opp_pg_fd_5, opp_fd_15 = opp_pg_fd_15, opp_fd_25 = opp_pg_fd_25, 
-                                    opp_fd_35 = opp_pg_fd_35, opp_fd_45 = opp_pg_fd_45, opp_fd_55 = opp_pg_fd_55)]
-
-player_data[position == 'SG', `:=` (opp_fd_1 = opp_sg_fd_1, opp_fd_2 = opp_sg_fd_2, opp_fd_3 = opp_sg_fd_3, 
-                                    opp_fd_5 = opp_sg_fd_5, opp_fd_15 = opp_sg_fd_15, opp_fd_25 = opp_sg_fd_25, 
-                                    opp_fd_35 = opp_sg_fd_35, opp_fd_45 = opp_sg_fd_45, opp_fd_55 = opp_sg_fd_55)]
+                                    opp_fd_35 = opp_pg_fd_35, opp_fd_45 = opp_pg_fd_45, opp_fd_55 = opp_pg_fd_55,
+                                    opp_fd_n_1 = opp_pg_fd_n_1, opp_fd_n_2 = opp_pg_fd_n_2, opp_fd_n_3 = opp_pg_fd_n_3, 
+                                    opp_fd_n_5 = opp_pg_fd_n_5, opp_fd_n_15 = opp_pg_fd_n_15, opp_fd_n_25 = opp_pg_fd_n_25, 
+                                    opp_fd_n_35 = opp_pg_fd_n_35, opp_fd_n_45 = opp_pg_fd_n_45, opp_fd_n_55 = opp_pg_fd_n_55)]
 
 player_data[position == 'SF', `:=` (opp_fd_1 = opp_sf_fd_1, opp_fd_2 = opp_sf_fd_2, opp_fd_3 = opp_sf_fd_3, 
                                     opp_fd_5 = opp_sf_fd_5, opp_fd_15 = opp_sf_fd_15, opp_fd_25 = opp_sf_fd_25, 
-                                    opp_fd_35 = opp_sf_fd_35, opp_fd_45 = opp_sf_fd_45, opp_fd_55 = opp_sf_fd_55)]
+                                    opp_fd_35 = opp_sf_fd_35, opp_fd_45 = opp_sf_fd_45, opp_fd_55 = opp_sf_fd_55,
+                                    opp_fd_n_1 = opp_sf_fd_n_1, opp_fd_n_2 = opp_sf_fd_n_2, opp_fd_n_3 = opp_sf_fd_n_3, 
+                                    opp_fd_n_5 = opp_sf_fd_n_5, opp_fd_n_15 = opp_sf_fd_n_15, opp_fd_n_25 = opp_sf_fd_n_25, 
+                                    opp_fd_n_35 = opp_sf_fd_n_35, opp_fd_n_45 = opp_sf_fd_n_45, opp_fd_n_55 = opp_sf_fd_n_55)]
+
+player_data[position == 'SG', `:=` (opp_fd_1 = opp_sg_fd_1, opp_fd_2 = opp_sg_fd_2, opp_fd_3 = opp_sg_fd_3, 
+                                    opp_fd_5 = opp_sg_fd_5, opp_fd_15 = opp_sg_fd_15, opp_fd_25 = opp_sg_fd_25, 
+                                    opp_fd_35 = opp_sg_fd_35, opp_fd_45 = opp_sg_fd_45, opp_fd_55 = opp_sg_fd_55,
+                                    opp_fd_n_1 = opp_sg_fd_n_1, opp_fd_n_2 = opp_sg_fd_n_2, opp_fd_n_3 = opp_sg_fd_n_3, 
+                                    opp_fd_n_5 = opp_sg_fd_n_5, opp_fd_n_15 = opp_sg_fd_n_15, opp_fd_n_25 = opp_sg_fd_n_25, 
+                                    opp_fd_n_35 = opp_sg_fd_n_35, opp_fd_n_45 = opp_sg_fd_n_45, opp_fd_n_55 = opp_sg_fd_n_55)]
 
 player_data[position == 'PF', `:=` (opp_fd_1 = opp_pf_fd_1, opp_fd_2 = opp_pf_fd_2, opp_fd_3 = opp_pf_fd_3, 
                                     opp_fd_5 = opp_pf_fd_5, opp_fd_15 = opp_pf_fd_15, opp_fd_25 = opp_pf_fd_25, 
-                                    opp_fd_35 = opp_pf_fd_35, opp_fd_45 = opp_pf_fd_45, opp_fd_55 = opp_pf_fd_55)]
+                                    opp_fd_35 = opp_pf_fd_35, opp_fd_45 = opp_pf_fd_45, opp_fd_55 = opp_pf_fd_55,
+                                    opp_fd_n_1 = opp_pf_fd_n_1, opp_fd_n_2 = opp_pf_fd_n_2, opp_fd_n_3 = opp_pf_fd_n_3, 
+                                    opp_fd_n_5 = opp_pf_fd_n_5, opp_fd_n_15 = opp_pf_fd_n_15, opp_fd_n_25 = opp_pf_fd_n_25, 
+                                    opp_fd_n_35 = opp_pf_fd_n_35, opp_fd_n_45 = opp_pf_fd_n_45, opp_fd_n_55 = opp_pf_fd_n_55)]
 
 player_data[position == 'C', `:=` (opp_fd_1 = opp_c_fd_1, opp_fd_2 = opp_c_fd_2, opp_fd_3 = opp_c_fd_3, 
                                    opp_fd_5 = opp_c_fd_5, opp_fd_15 = opp_c_fd_15, opp_fd_25 = opp_c_fd_25, 
-                                   opp_fd_35 = opp_c_fd_35, opp_fd_45 = opp_c_fd_45, opp_fd_55 = opp_c_fd_55)]
+                                   opp_fd_35 = opp_c_fd_35, opp_fd_45 = opp_c_fd_45, opp_fd_55 = opp_c_fd_55,
+                                   opp_fd_n_1 = opp_c_fd_n_1, opp_fd_n_2 = opp_c_fd_n_2, opp_fd_n_3 = opp_c_fd_n_3, 
+                                   opp_fd_n_5 = opp_c_fd_n_5, opp_fd_n_15 = opp_c_fd_n_15, opp_fd_n_25 = opp_c_fd_n_25, 
+                                   opp_fd_n_35 = opp_c_fd_n_35, opp_fd_n_45 = opp_c_fd_n_45, opp_fd_n_55 = opp_c_fd_n_55)]
 
 ## positional depth
 team_depth = player_data[, .(pos_depth=.N - 1) ,by=.(gameID,team,position)]
 player_data = player_data %>% inner_join(team_depth)
-
-
-drop_cols = c("opp_fd","team_fd")
 
 
 ##############################
@@ -359,14 +352,22 @@ fdpm_variables = colnames(player_data)[grepl('fdpm_\\w*\\d', colnames(player_dat
 pos_feature = c('pg','sg','sf','pf')
   
 base_variables = c("fd_1","fd_2","fd_3","fd_5","fd_15","fd_25","fd_35","fd_45","fd_55")
+
+days_rest_variables = c("b2b","days_rest","opp_b2b","opp_days_rest","player_days_rest","player_b2b")
 all_variables = c(base_variables,min_variables,fta_variables,fga_variables,opp_variables,
-                    'b2b','opp_b2b','homeaway','starter','pos_depth',pos_feature,fdpm_variables)
+                    'homeaway','starter','pos_depth',pos_feature,fdpm_variables,days_rest_variables)
 
 ##filter training on players with fd>0???
 training = player_data[season_code != 20142015]
 test = player_data[season_code == 20142015]
-ytest = select(test, gameID, player, fd)
-all = select(player_data,gameID,player,fd)
+ytest = select(test, gameID, player, position, fd)
+
+test_pg = select(test[position == 'PG'], gameID, player, fd)
+test_sg = select(test[position == 'SG'], gameID, player, fd)
+test_sf = select(test[position == 'SF'], gameID, player, fd)
+test_pf = select(test[position == 'PF'], gameID, player, fd)
+test_c = select(test[position == 'C'], gameID, player, fd)
+
 
 #########################
 ######  BASE MODEL ######
@@ -398,15 +399,6 @@ mdl1 %>% summary
 ytest$mdl1 = predict(mdl1, test)
 lm(fd ~ mdl1, data = ytest) %>% summary
 
-
-vars_kept = fastbw(mdl1, k.aic = 1.5)$names.kept
-
-mdl15 = lm(reformulate(vars_kept, response = 'fd'), data = training)
-
-md15 %>% summary
-
-
-
 ######################
 ######  MODEL 2 ######
 ######################
@@ -423,7 +415,29 @@ mdl2 %>% summary
 ytest$mdl2 = predict(mdl2, test)
 lm(fd ~ mdl2, data = ytest) %>% summary
 
-all$mdl2 = predict(mdl2, player_data)
+################################
+######  POSITIONAL MODELS ######
+################################
+all_variables = c(base_variables,min_variables,fta_variables,fga_variables,opp_variables,
+                  'homeaway','starter','pos_depth',fdpm_variables,days_rest_variables)
+
+fmla2 = reformulate(all_variables, response='fd')
+
+mdl_pg = lm(fmla2, data = training[position=='PG',])
+mdl_sg = lm(fmla1, data = training[position=='SG',])
+mdl_sf = lm(fmla1, data = training[position=='SF',])
+mdl_pf = lm(fmla1, data = training[position=='PF',])
+mdl_c = lm(fmla1, data = training[position=='C',])
+
+test_pg$psn_mdl = predict(mdl_pg, test[position == 'PG'])
+test_sg$psn_mdl = predict(mdl_sg, test[position == 'SG'])
+test_sf$psn_mdl = predict(mdl_sf, test[position == 'SF'])
+test_pf$psn_mdl = predict(mdl_pf, test[position == 'PF'])
+test_c$psn_mdl = predict(mdl_c, test[position == 'C'])
+
+ytest_psn = rbind(test_pg, test_sg, test_sf, test_pf, test_c)
+lm(fd ~ psn_mdl, data = ytest_psn) %>% summary
+
 
 ########################
 ### FEATURES TO ADD ###
