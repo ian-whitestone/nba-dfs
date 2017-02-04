@@ -87,6 +87,10 @@ player_data=player_data[team_data,nomatch=0]
 player_data[,homeaway:= 1]
 player_data[team == away_team,homeaway:= 0]
 
+##add opponent field
+player_data[,opponent:=home_team]
+player_data[team==home_team,opponent:=away_team]
+
 ##add rolling variables
 window_size = seq(5,55,10)
 player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fd', window_size)
@@ -116,26 +120,42 @@ window_size = seq(1,3,1)
 player_data = player_data %>% group_by(player) %>% arrange(date) %>% roll_variable_mean(., 'fdpm', window_size)
 
 
-##BACK TO BACK GAME VARIABLE
+##BACK TO BACK GAME VARIABLE - TEAM LEVEL 
 days_rest=player_data[,.N,by=.(team,date_num)][,.(team,date_num)][order(team,date_num)]
 days_rest$days_rest=ave(days_rest$date_num, days_rest$team, FUN=function(x) c(10, diff(x)))
 days_rest$b2b=ifelse(days_rest$days_rest==1,1,0)
-
-##add opponent field
-player_data[,opponent:=home_team]
-player_data[team==home_team,opponent:=away_team]
 
 ##join b2b,opp_b2b, days_rest, opp_days_rest
 setkey(player_data,team,date_num)
 setkey(days_rest,team,date_num)
 player_data=player_data[days_rest[,.(team,date_num,b2b,days_rest)],nomatch=0]
 
-days_rest[, `:=` (opp_b2b=b2b, opp_days_rest=days_rest)][,`:=` (b2b=NULL,days_rest=NULL)]
-setkey(days_rest,team,date_num)
+days_rest[, `:=` (opp_b2b=b2b, opp_days_rest=days_rest, opponent=team)][,
+            `:=` (b2b=NULL,days_rest=NULL,team=NULL)]
+setkey(days_rest,opponent,date_num)
 setkey(player_data,opponent,date_num)
-player_data=player_data[days_rest[,.(team,date_num,opp_b2b,opp_days_rest)],nomatch=0] ##not working
+player_data=player_data[days_rest,nomatch=0] 
 
+## cap at 6
 player_data[days_rest>6, days_rest := 6]
+player_data[opp_days_rest>6, opp_days_rest := 6]
+
+
+
+##BACK TO BACK GAME VARIABLE - PLAYER LEVEL 
+days_rest=player_data[,.N,by=.(team,player,date_num)][,.(team,player,date_num)][order(team,player,date_num)]
+days_rest$player_days_rest=ave(days_rest$date_num, days_rest$player, FUN=function(x) c(10, diff(x)))
+days_rest$player_b2b=ifelse(days_rest$player_days_rest==1,1,0)
+
+##join player b2b, player days rest
+setkey(player_data,team,date_num,player)
+setkey(days_rest,team,date_num,player)
+player_data=player_data[days_rest,nomatch=0]
+
+## cap at 10
+player_data[player_days_rest>10, days_rest := 10]
+
+
 
 ##one-encoding for position
 player_data[, `:=` (pg = 0,sg = 0,sf = 0,pf = 0,c = 0)]
@@ -239,12 +259,19 @@ setkey(posn_sum_n,gameID,team)
 setkey(team_data,gameID,team)
 team_data=team_data[posn_sum_n,nomatch=0]
 
-###IAN - LEFT OFF HERE!!!
-
 ##get team opponent data
-team_data_opp=team_data[,.(gameID,team,pg_fd,sg_fd,sf_fd,pf_fd,c_fd,g_fd,p_fd,team_fd)]
-setnames(team_data_opp,old=c("team","pg_fd","sg_fd","sf_fd","pf_fd","c_fd","g_fd","p_fd","team_fd"),
-         new=c("opponent","opp_pg_fd","opp_sg_fd","opp_sf_fd","opp_pf_fd","opp_c_fd","opp_g_fd","opp_p_fd","opp_fd"))
+team_data_opp=team_data[,.(gameID,team,pg_fd,sg_fd,sf_fd,pf_fd,c_fd,g_fd,p_fd,
+                    team_fd,pg_fd_n,sg_fd_n,sf_fd_n,pf_fd_n,c_fd_n,g_fd_n,p_fd_n)]
+setnames(team_data_opp,
+         old=c("team","pg_fd","sg_fd","sf_fd","pf_fd","c_fd",
+              "g_fd","p_fd","team_fd","pg_fd_n","sg_fd_n",
+              "sf_fd_n","pf_fd_n","c_fd_n","g_fd_n","p_fd_n"),
+         new=c("opponent","opp_pg_fd","opp_sg_fd","opp_sf_fd",
+               "opp_pf_fd","opp_c_fd","opp_g_fd","opp_p_fd","opp_fd",
+               "opp_pg_fd_n","opp_sg_fd_n","opp_sf_fd_n","opp_pf_fd_n",
+               "opp_c_fd_n","opp_g_fd_n","opp_p_fd_n")
+         )
+
 setkey(team_data,gameID,opponent)
 setkey(team_data_opp,gameID,opponent)
 team_data=team_data[team_data_opp,nomatch=0]
@@ -265,6 +292,20 @@ team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_m
 team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_sf_fd', window_size)
 team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_pf_fd', window_size)
 team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_c_fd', window_size)
+
+window_size = seq(5,55,10)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_pg_fd_n', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_sg_fd_n', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_sf_fd_n', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_pf_fd_n', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_c_fd_n', window_size)
+
+window_size = seq(1,3,1)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_pg_fd_n', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_sg_fd_n', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_sf_fd_n', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_pf_fd_n', window_size)
+team_data=team_data %>% group_by(team) %>% arrange(date_num) %>% roll_variable_mean(., 'opp_c_fd_n', window_size)
 
 
 ## IAN - NORMALIZE THESE EITHER BY NUMBER OF PLAYERS AT THAT POSITION OR STARTER VS BENCH sep features
@@ -388,13 +429,10 @@ all$mdl2 = predict(mdl2, player_data)
 ### FEATURES TO ADD ###
 ########################
 
-## pace
-## usage rate
-## points per minute
-## weak rebounding teams? (especially important for centers..opp_rebounds allowed feature)
-## teams with lots of turnovers??
-## starter is resting/injured.
-## trailing points (actual basketball points)
+## pace - number of possessions a team uses per game
+## Deff - the number of poitns a team allows per 100 possessions 
+## usg - the percentage of a teams posessions a player uses while he is in the game
+
 
 #################
 ### MODELLING ###
@@ -403,4 +441,3 @@ all$mdl2 = predict(mdl2, player_data)
 ## separate model for each position 
 ## redo days rest at the player level??
 ## days rest at team level (fix this...)
-## normalize opp_fd variables...
